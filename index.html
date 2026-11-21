@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Only this site, the diary backend and Google sign-in may run or be contacted; no inline script. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; img-src 'self' data:; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://router-backend-3hl2.onrender.com https://accounts.google.com/gsi/">
   <title>全心日記</title>
   <meta name="description" content="一天一篇的日記 App。日記、圖片與影片只存在你的手機與你自己的 Google 雲端硬碟。">
   <link rel="icon" type="image/png" href="favicon.png">
@@ -60,7 +62,5 @@
   <script src="js/api.js"></script>
   <script src="js/md.js"></script>
   <script src="js/home.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer onload="window.amdHomeGsiReady && window.amdHomeGsiReady()"
-    onerror="document.getElementById('login-note').textContent = '無法載入 Google 登入元件（不影響瀏覽網站）。'"></script>
 </body>
 </html>

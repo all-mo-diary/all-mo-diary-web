@@ -50,11 +50,11 @@ INDEX = [
         "On an Android phone, open the download to install it. The first time, allow your browser to \"install unknown apps\".",
     ),
     ("目前尚未在 Google Play 上架。", "Not yet available on Google Play."),
-    ("無法載入 Google 登入元件（不影響瀏覽網站）。", "Could not load Google sign-in (browsing the site is not affected)."),
     (">不用 Google 帳號直接進入</button>", ">Enter without a Google account</button>"),
 ]
 
 HOME = [
+    ("無法載入 Google 登入元件（不影響瀏覽網站）。", "Could not load Google sign-in (browsing the site is not affected)."),
     ('"到 Google Play 下載"', '"Get it on Google Play"'),
     ("`版本 ${v}`", "`Version ${v}`"),
     ('{ terms: "使用者條款", privacy: "隱私權政策" }', '{ terms: "Terms of Use", privacy: "Privacy Policy" }'),

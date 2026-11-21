@@ -2,7 +2,8 @@
 // 不用第三方函式庫;內容來自我們自己的 legal/*.md,仍然先跳脫 HTML。
 (function () {
   function esc(s) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
   function inline(s) {
     let t = esc(s);

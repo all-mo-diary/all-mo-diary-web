@@ -90,6 +90,17 @@
     google.accounts.id.renderButton($("gsi"), { type: "icon", shape: "circle", theme: dark ? "filled_black" : "outline", size: "large" });
   };
 
+  // Load Google's sign-in script here rather than with inline onload/onerror attributes, so the
+  // page's Content-Security-Policy can forbid inline script entirely.
+  const gsi = document.createElement("script");
+  gsi.src = "https://accounts.google.com/gsi/client";
+  gsi.async = true;
+  gsi.addEventListener("load", () => window.amdHomeGsiReady());
+  gsi.addEventListener("error", () => {
+    $("login-note").textContent = "無法載入 Google 登入元件（不影響瀏覽網站）。";
+  });
+  document.head.appendChild(gsi);
+
   // A stored admin session survives reloads and new tabs (localStorage).
   if (api.token()) showAdmin();
 })();

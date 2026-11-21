@@ -5,7 +5,8 @@
 
 正式版的檔案一個都不改;示範版需要的轉接全部在這裡做:
 - index.html:從正式版的 index.html 改路徑,把 js/config.js、js/api.js 換成示範版自己的,
-  最前面加一段替 localStorage 的 key 加前綴的 script(跟正式版同一個網域,不能互相讀到)。
+  最前面載入替 localStorage 的 key 加前綴的 storage-shim.js(跟正式版同一個網域,不能互相讀到)。
+  示範版加的 script 都是檔案,不用 inline script,所以正式版的 CSP 可以原樣沿用。
 - config.js:從正式版的 js/config.js 複製,後端網址清空(萬一載入了真的 api.js,請求也只會打到 github.io)。
 - 首頁多一個「不用 Google 帳號直接進入」的按鈕;登入後的「管理後台」連到示範版自己的 admin.html。
 - admin.html:從正式版的 admin.html 改路徑,同樣換成示範版的 config.js 與 api.js(假後台)。
@@ -37,19 +38,22 @@ CJK = re.compile(r"[　-〿㐀-鿿＀-￯]")
 # 營運者名稱照原文保留;隱私權政策裡的「全心日記」是雲端硬碟上真正的資料夾名稱。
 CJK_ALLOWED = ["阿舍老師", '"全心日記" folder']
 
-GUEST = (
-    "  <script>\n"
-    "    // 示範版:不用 Google 帳號也能進後台。登入後(出現「管理後台」入口)就藏起來。\n"
-    "    (function () {\n"
-    "      var b = document.getElementById(\"demo-guest\");\n"
-    "      var admin = document.getElementById(\"admin-link\");\n"
-    "      function sync() { b.hidden = !!window.amdApi.token() && !admin.hidden; }\n"
-    "      b.hidden = !!window.amdApi.token();\n"
-    "      new MutationObserver(sync).observe(admin, { attributes: true });\n"
-    "      b.onclick = function () { window.amdApi.setToken(\"demo\"); location.reload(); };\n"
-    "    })();\n"
-    "  </script>\n"
+# 示範版加的兩段 script 都放成檔案,不用 inline script:正式版的 CSP 不允許 inline script,
+# 示範版的頁面照樣沿用那個 CSP。
+GUEST_JS = (
+    "// 由 demo/tools/build.py 產生,不要手改。\n"
+    "// 示範版:不用 Google 帳號也能進後台。登入後(出現「管理後台」入口)就藏起來。\n"
+    "(function () {\n"
+    "  var b = document.getElementById(\"demo-guest\");\n"
+    "  var admin = document.getElementById(\"admin-link\");\n"
+    "  function sync() { b.hidden = !!window.amdApi.token() && !admin.hidden; }\n"
+    "  b.hidden = !!window.amdApi.token();\n"
+    "  new MutationObserver(sync).observe(admin, { attributes: true });\n"
+    "  b.onclick = function () { window.amdApi.setToken(\"demo\"); location.reload(); };\n"
+    "})();\n"
 )
+
+GUEST = '  <script src="guest.js"></script>\n'
 
 LATIN_FONT = '  <style>body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }</style>\n</head>'
 
@@ -81,28 +85,33 @@ def translate(text: str, pairs: list[tuple[str, str]], where: str) -> str:
     return text
 
 
-def storage_shim(prefix: str, noindex: bool) -> str:
+def storage_shim_js(prefix: str) -> str:
+    return (
+        "// 由 demo/tools/build.py 產生,不要手改。\n"
+        "// 示範版跟正式版同一個網域,localStorage 是共用的:這一頁所有的 key 加上前綴,\n"
+        "// 讀不到正式版的管理員 session,也不會寫進正式版的資料。一定要在其他 script 之前載入。\n"
+        "(function () {\n"
+        f"  var PREFIX = \"{prefix}\";\n"
+        "  var S = Storage.prototype;\n"
+        "  var getItem = S.getItem, setItem = S.setItem, removeItem = S.removeItem;\n"
+        "  S.getItem = function (k) { return getItem.call(this, PREFIX + k); };\n"
+        "  S.setItem = function (k, v) { return setItem.call(this, PREFIX + k, v); };\n"
+        "  S.removeItem = function (k) { return removeItem.call(this, PREFIX + k); };\n"
+        "})();\n"
+    )
+
+
+def storage_shim(noindex: bool) -> str:
     return (
         ("  <meta name=\"robots\" content=\"noindex\">\n" if noindex else "")
-        + "  <script>\n"
-        "    // 示範版跟正式版同一個網域,localStorage 是共用的:這一頁所有的 key 加上前綴,\n"
-        "    // 讀不到正式版的管理員 session,也不會寫進正式版的資料。一定要在其他 script 之前執行。\n"
-        "    (function () {\n"
-        f"      var PREFIX = \"{prefix}\";\n"
-        "      var S = Storage.prototype;\n"
-        "      var getItem = S.getItem, setItem = S.setItem, removeItem = S.removeItem;\n"
-        "      S.getItem = function (k) { return getItem.call(this, PREFIX + k); };\n"
-        "      S.setItem = function (k, v) { return setItem.call(this, PREFIX + k, v); };\n"
-        "      S.removeItem = function (k) { return removeItem.call(this, PREFIX + k); };\n"
-        "    })();\n"
-        "  </script>\n"
+        + "  <script src=\"storage-shim.js\"></script>\n"
     )
 
 
 def common_page(src: str, source: str, lang: str, where: str) -> str:
     """index.html 與 admin.html 共用的轉接:產生標記、localStorage 前綴、相對路徑、示範版的 script。"""
     t = replace_once(src, "<!doctype html>\n", "<!doctype html>\n" + html_mark(source), where)
-    t = replace_once(t, '<meta charset="utf-8">\n', '<meta charset="utf-8">\n' + storage_shim("demo-en:" if lang == "en" else "demo:", 'name="robots"' not in src), where)
+    t = replace_once(t, '<meta charset="utf-8">\n', '<meta charset="utf-8">\n' + storage_shim('name="robots"' not in src), where)
     for old, new in [
         ('href="favicon.png"', 'href="../favicon.png"'),
         ('href="css/style.css"', 'href="../css/style.css"'),
@@ -130,7 +139,6 @@ def build_index(lang: str) -> str:
         t = replace_once(t, old, new, where)
     if lang == "en":
         t = translate(t, translations.INDEX, where)
-        t = replace_once(t, 'src="https://accounts.google.com/gsi/client"', 'src="https://accounts.google.com/gsi/client?hl=en"', where)
     return t
 
 
@@ -160,15 +168,22 @@ def outputs() -> dict[Path, str]:
     out[DEMO / "index.html"] = build_index("zh")
     out[DEMO / "admin.html"] = build_admin("zh")
     out[DEMO / "config.js"] = build_config()
+    out[DEMO / "storage-shim.js"] = storage_shim_js("demo:")
+    out[DEMO / "guest.js"] = GUEST_JS
     for doc in DOCS:
         out[DEMO / "legal" / f"{doc}.md"] = (WEB / "legal" / f"{doc}.md").read_text(encoding="utf-8")
 
     out[DEMO_EN / "index.html"] = build_index("en")
     out[DEMO_EN / "admin.html"] = build_admin("en")
     out[DEMO_EN / "config.js"] = build_config()
+    out[DEMO_EN / "storage-shim.js"] = storage_shim_js("demo-en:")
+    out[DEMO_EN / "guest.js"] = GUEST_JS
     out[DEMO_EN / "api.js"] = js_mark("demo/api.js") + (DEMO / "api.js").read_text(encoding="utf-8")
     home = (WEB / "js" / "home.js").read_text(encoding="utf-8")
-    out[DEMO_EN / "home.js"] = js_mark("js/home.js") + translate(home, translations.HOME, "demo-en/home.js")
+    home_en = translate(home, translations.HOME, "demo-en/home.js")
+    home_en = replace_once(home_en, 'gsi.src = "https://accounts.google.com/gsi/client";',
+                           'gsi.src = "https://accounts.google.com/gsi/client?hl=en";', "demo-en/home.js")
+    out[DEMO_EN / "home.js"] = js_mark("js/home.js") + home_en
     admin = (WEB / "js" / "admin.js").read_text(encoding="utf-8")
     out[DEMO_EN / "admin.js"] = js_mark("js/admin.js") + translate(admin, translations.ADMIN, "demo-en/admin.js")
     return out
