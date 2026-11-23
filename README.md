@@ -117,7 +117,7 @@ python3 -m http.server 8010
 1. repo 的 **Settings → Pages**。
 2. **Build and deployment → Source** 選 **Deploy from a branch**。
 3. **Branch** 選 `main`、資料夾選 `/ (root)` → **Save**。
-4. 一兩分鐘後打開 `https://beethoreven.github.io/all-mo-diary-web/` 看得到首頁。之後每次推上 `main`，Pages 會自動更新。
+4. 一兩分鐘後打開 `https://all-mo-diary.github.io/all-mo-diary-web/` 看得到首頁。之後每次推上 `main`，Pages 會自動更新。
 
 ---
 
@@ -265,7 +265,7 @@ Press `Control + C` to stop the web server.
 1. The repo's **Settings → Pages**.
 2. **Build and deployment → Source**: **Deploy from a branch**.
 3. **Branch**: `main`, folder `/ (root)` → **Save**.
-4. A minute or two later `https://beethoreven.github.io/all-mo-diary-web/` shows the home page. Every push to `main` updates it automatically.
+4. A minute or two later `https://all-mo-diary.github.io/all-mo-diary-web/` shows the home page. Every push to `main` updates it automatically.
 
 ---
 
