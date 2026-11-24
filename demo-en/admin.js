@@ -199,7 +199,15 @@
         const f = el.dataset.f;
         let value = el.type === "checkbox" ? el.checked : el.value;
         if (f === "sort") { value = parseInt(value, 10); if (isNaN(value)) return message("Order must be a whole number", "warn"); }
-        run(async () => { await api.call("PATCH", "/api/admin/fonts/" + el.dataset.font, { [f]: value }); await loadFonts(); }, "Saved as draft");
+        const sent = el.value;
+        run(async () => {
+          await api.call("PATCH", "/api/admin/fonts/" + el.dataset.font, { [f]: value });
+          // What was sent is saved now, so it no longer counts as text being typed. Otherwise a field
+          // that still has the cursor (the window lost focus, not the field) would hold the redraw
+          // back for good: it never reports being left again, and the saved text is not a change.
+          if (el.type !== "checkbox") el.defaultValue = sent;
+          await loadFonts();
+        }, "Saved as draft");
       };
     });
     document.querySelectorAll("[data-del-font]").forEach((b) => {
