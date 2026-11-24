@@ -17,9 +17,9 @@
 
 | 頁面 | 內容 |
 |---|---|
-| `index.html` | 首頁：App 介紹、「你的日記只在你手上」、下載。上方的頁籤可以在同一頁切換到使用者條款、隱私權政策（網址會帶 `?doc=terms` / `?doc=privacy`，可以直接分享）。右上角可以用 Google 登入：一般使用者登入沒有作用；管理員登入後才出現「管理後台」的入口。 |
+| `index.html` | 首頁：App 介紹、「你的日記只在你手上」、下載、字體（App 提供的字體與各自的來源，授權要求標示來源的字體在這裡照原文標示）。上方的頁籤可以在同一頁切換到使用者條款、隱私權政策（網址會帶 `?doc=terms` / `?doc=privacy`，可以直接分享）。右上角可以用 Google 登入：一般使用者登入沒有作用；管理員登入後才出現「管理後台」的入口。 |
 | `legal.html?doc=terms` / `privacy` | 條款與政策的單獨頁面，內容和首頁頁籤是同一份。App 內與 Google 同意畫面連的是這個網址，所以保留。 |
-| `admin.html` | 管理後台，五個分頁：字體（字體清單的編輯、上傳字體檔、發布）、App 版本（強制更新門檻、原因、公告）、意見回饋、管理員、系統（快取與資料庫的版本、重新載入快取）。 |
+| `admin.html` | 管理後台，五個分頁：字體（字體清單的編輯，包含每個字體的來源／授權說明；上傳字體檔、發布）、App 版本（強制更新門檻、原因、公告）、意見回饋、管理員、系統（快取與資料庫的版本、重新載入快取）。 |
 | `demo/`、`demo-en/` | 首頁與管理後台的示範版（中文、英文），不連後端，見 [`demo/README.md`](demo/README.md)。 |
 
 ### 系統架構
@@ -165,9 +165,9 @@ The two parts are deliberately separate; the report is background, the guide is 
 
 | Page | Content |
 |---|---|
-| `index.html` | Home page: about the app, "your diary stays with you", download. Tabs at the top switch to the Terms of Use and Privacy Policy on the same page (the address carries `?doc=terms` / `?doc=privacy`, so it can be shared). Google sign-in at the top right: ordinary users get nothing; an admin gets the "管理後台" (admin console) link. |
+| `index.html` | Home page: about the app, "your diary stays with you", download, fonts (the fonts the app offers and where each comes from; a font whose licence requires naming its source is credited here in the licence's own wording). Tabs at the top switch to the Terms of Use and Privacy Policy on the same page (the address carries `?doc=terms` / `?doc=privacy`, so it can be shared). Google sign-in at the top right: ordinary users get nothing; an admin gets the "管理後台" (admin console) link. |
 | `legal.html?doc=terms` / `privacy` | Stand-alone pages for the terms and policy, the same text as the home page tabs. The app and Google's consent screen link here, so it stays. |
-| `admin.html` | Admin console with five tabs: Fonts (edit the font list, upload font files, publish), App version (forced-update threshold, reason, announcement), Feedback, Admins, System (cache and database versions, reload cache). |
+| `admin.html` | Admin console with five tabs: Fonts (edit the font list, including each font's source and licence statement; upload font files, publish), App version (forced-update threshold, reason, announcement), Feedback, Admins, System (cache and database versions, reload cache). |
 | `demo/`, `demo-en/` | Demo versions of the home page and console (Chinese, English) that never contact the backend; see [`demo/README.md`](demo/README.md). |
 
 ### System Architecture

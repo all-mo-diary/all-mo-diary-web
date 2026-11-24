@@ -87,7 +87,35 @@
     });
   }
 
+  // The new-font row isn't saved until 新增字體 is pressed, and a redraw rebuilds its fields: what was
+  // typed there is carried over, and cleared once the font has been added.
+  const NEW_FONT_FIELDS = ["new-font-name", "new-font-sort", "new-font-attribution"];
+  let fontsRedrawWaiting = false;
+
   function renderFonts(data, o) {
+    // A redraw replaces every field. One that is being typed in would lose its text — an earlier
+    // save or an upload can finish while a statement is being written — so the redraw waits until
+    // that field is left. A table field left with a change saves itself and reloads; anything else
+    // reloads here.
+    const editing = document.activeElement;
+    const typing = !!editing && $("tab-fonts").contains(editing)
+      && editing.matches("textarea, input:not([type=checkbox]):not([type=file])");
+    if (typing && editing.value !== editing.defaultValue) {
+      if (!fontsRedrawWaiting) {
+        fontsRedrawWaiting = true;
+        editing.addEventListener("blur", () => {
+          fontsRedrawWaiting = false;
+          const savesItself = editing.dataset.font && editing.value !== editing.defaultValue;
+          if (!savesItself) loadFonts();
+        }, { once: true });
+      }
+      return;
+    }
+    // Redrawing now: a field that was waited for is replaced along with the rest, and a replaced
+    // field never reports being left.
+    fontsRedrawWaiting = false;
+    const draft = NEW_FONT_FIELDS.map((id) => ($(id) ? $(id).value : ""));
+    const draftLicensed = !!$("new-font-licensed") && $("new-font-licensed").checked;
     const release = data.release;
     const publishedIds = new Set(release ? release.content.fonts.map((f) => f.id) : []);
     const unpublished = data.fonts.some((f) => f.download_url && (!f.published ||
@@ -96,7 +124,8 @@
         <td>${f.id}</td>
         <td><input data-font="${f.id}" data-f="name" value="${esc(f.name)}" class="cell-name"></td>
         <td><input data-font="${f.id}" data-f="sort" value="${f.sort}" class="cell-sort" inputmode="numeric"></td>
-        <td><label><input type="checkbox" data-font="${f.id}" data-f="licensed" ${f.licensed ? "checked" : ""}> 有授權</label></td>
+        <td><label><input type="checkbox" data-font="${f.id}" data-f="licensed" ${f.licensed ? "checked" : ""}> 有授權</label>
+          <textarea data-font="${f.id}" data-f="attribution" class="cell-attribution" rows="2" maxlength="500" placeholder="來源／授權說明">${esc(f.attribution)}</textarea></td>
         <td><label><input type="checkbox" data-font="${f.id}" data-f="disabled" ${f.disabled ? "checked" : ""}> 停用</label></td>
         <td>${f.download_url
           ? `<span title="${esc(f.file_name)}">安裝後 ${mb(f.font_bytes)}<br><span class="muted">下載 ${mb(f.download_bytes)}</span></span>`
@@ -111,7 +140,8 @@
       <div class="card">
         <p class="muted">上傳的是<strong>字體瘦身工具</strong>產生的 <code>.otf.gz</code>（meta repo 的 tools/字體瘦身.command）。
         修改會先存成草稿，按「發布」才會讓 App 下載新的清單。ID 永遠不可改、不可重用；發布過的字體不能刪除，只能停用。
-        「有授權」只是標示，不會擋上傳。內建的 Noto Sans TC 不在這個清單裡。</p>
+        「有授權」只是標示，不會擋上傳。內建的 Noto Sans TC 不在這個清單裡。
+        「來源／授權說明」會照原樣顯示在 App 的字體設定頁與開放原始碼授權頁；授權條款要求標示來源的字體一定要填，不需要的可以留空。</p>
         <div class="row"><strong>字體清單</strong><span class="muted">目前發布：${esc(release ? release.version : "沒有")}</span>
           ${unpublished ? '<span class="pill warn">草稿有未發布的修改</span>' : '<span class="pill">和發布版本一樣</span>'}
           <span class="grow"></span><button id="publish-fonts" class="primary">發布</button></div>
@@ -122,13 +152,28 @@
         <div class="row" style="margin-top:8px"><input id="new-font-name" class="field-name" placeholder="字體名稱（App 上顯示的名稱）">
           <input id="new-font-sort" class="cell-sort" placeholder="排序" inputmode="numeric">
           <label><input type="checkbox" id="new-font-licensed"> 有授權</label>
+          <input id="new-font-attribution" class="field-name" maxlength="500" placeholder="來源／授權說明（可以留空）">
           <button id="add-font">新增字體</button></div>
       </div>`;
+    NEW_FONT_FIELDS.forEach((id, i) => { $(id).value = draft[i]; });
+    $("new-font-licensed").checked = draftLicensed;
     bindFonts();
+    if (typing) {
+      // The cursor stays in the field it was in (the field itself is a new element now).
+      const same = editing.id ? $(editing.id)
+        : document.querySelector(`[data-font="${editing.dataset.font}"][data-f="${editing.dataset.f}"]`);
+      if (same) {
+        same.focus();
+        same.setSelectionRange(editing.selectionStart, editing.selectionEnd);
+      }
+    }
   }
 
+  // What a publish would change. A list published without the attribution key counts as an empty
+  // one, so it only shows as an unpublished change once a statement has been written.
   function pick(f) {
-    return { name: f.name, sort: f.sort, disabled: f.disabled, licensed: f.licensed, file_name: f.file_name };
+    return { name: f.name, sort: f.sort, disabled: f.disabled, licensed: f.licensed, attribution: f.attribution || "",
+      file_name: f.file_name };
   }
 
   function bindFonts() {
@@ -143,7 +188,9 @@
     $("add-font").onclick = () => run(async () => {
       const sort = parseInt($("new-font-sort").value || "0", 10);
       await api.call("POST", "/api/admin/fonts", { name: $("new-font-name").value, sort: isNaN(sort) ? 0 : sort,
-        licensed: $("new-font-licensed").checked });
+        licensed: $("new-font-licensed").checked, attribution: $("new-font-attribution").value });
+      for (const id of NEW_FONT_FIELDS) $(id).value = "";
+      $("new-font-licensed").checked = false;
       await loadFonts();
     }, "已新增，接著上傳字體檔");
     document.querySelectorAll("[data-font]").forEach((el) => {

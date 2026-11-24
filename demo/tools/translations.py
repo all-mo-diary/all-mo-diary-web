@@ -50,6 +50,13 @@ INDEX = [
         "On an Android phone, open the download to install it. The first time, allow your browser to \"install unknown apps\".",
     ),
     ("目前尚未在 Google Play 上架。", "Not yet available on Google Play."),
+    ('font-size: 17px">字體</h2>', 'font-size: 17px">Fonts</h2>'),
+    ("<li>內建 Noto Sans TC（SIL Open Font License 1.1）。</li>", "<li>Built in: Noto Sans TC (SIL Open Font License 1.1).</li>"),
+    # 來源的英文照全字庫授權頁英文版的寫法(the full repertoire = the full repertoire of CNS 11643)。
+    (
+        "<li>可以另外安裝「全字庫正楷體」。來源：數位發展部，CNS11643中文標準交換碼全字庫網站，",
+        "<li>TW-Kai can be installed as an extra font. Source: Ministry of Digital Affairs, the full repertoire of CNS 11643, ",
+    ),
     (">不用 Google 帳號直接進入</button>", ">Enter without a Google account</button>"),
 ]
 
@@ -89,7 +96,8 @@ ADMIN_HTML = [
 
 ADMIN = [
     # 字體
-    ("> 有授權</label></td>", "> Licensed</label></td>"),
+    ('"checked" : ""}> 有授權</label>', '"checked" : ""}> Licensed</label>'),
+    ('placeholder="來源／授權說明"', 'placeholder="Source and licence statement"'),
     ("> 停用</label></td>", "> Disabled</label></td>"),
     (">安裝後 ${mb(f.font_bytes)}<br>", ">Installed ${mb(f.font_bytes)}<br>"),
     (">下載 ${mb(f.download_bytes)}</span>", ">Download ${mb(f.download_bytes)}</span>"),
@@ -116,6 +124,10 @@ ADMIN = [
         "「有授權」只是標示，不會擋上傳。內建的 Noto Sans TC 不在這個清單裡。",
         "\"Licensed\" is only a label and doesn't block uploads. The built-in Noto Sans TC is not in this list.",
     ),
+    (
+        "「來源／授權說明」會照原樣顯示在 App 的字體設定頁與開放原始碼授權頁；授權條款要求標示來源的字體一定要填，不需要的可以留空。",
+        "The \"source and licence statement\" is shown as written on the font settings page and the open-source licences page of the App. Fill it in for fonts whose licence requires naming the source; leave it empty for the rest.",
+    ),
     ("<strong>字體清單</strong>", "<strong>Font list</strong>"),
     ('目前發布：${esc(release ? release.version : "沒有")}', 'Published: ${esc(release ? release.version : "none")}'),
     (">草稿有未發布的修改</span>", ">The draft has unpublished changes</span>"),
@@ -129,6 +141,7 @@ ADMIN = [
     ('placeholder="字體名稱（App 上顯示的名稱）"', 'placeholder="Font name (as shown in the App)"'),
     ('placeholder="排序"', 'placeholder="Order"'),
     ('id="new-font-licensed"> 有授權</label>', 'id="new-font-licensed"> Licensed</label>'),
+    ('placeholder="來源／授權說明（可以留空）"', 'placeholder="Source and licence statement (optional)"'),
     (">新增字體</button>", ">Add font</button>"),
     (
         "發布後，App 下次檢查更新就會拿到新的字體清單。確定？",

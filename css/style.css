@@ -116,6 +116,8 @@ textarea { width: 100%; min-height: 4em; }
 .field-name { flex: 1 1 12em; min-width: 10em; }
 .cell-name { width: 100%; min-width: 8em; }
 .cell-sort { width: 4.5em; }
+/* The statement under the 有授權 box: a block of its own, wide enough to read a source line in. */
+.cell-attribution { display: block; margin-top: 6px; min-width: 14em; min-height: 3.2em; }
 /* Font table: keep the checkbox labels and the delete button on one line; the file picker is
    the column that gives way (its 未選擇任何檔案 text is cut short instead of pushing the others). */
 .admin td label, .admin td button { white-space: nowrap; }

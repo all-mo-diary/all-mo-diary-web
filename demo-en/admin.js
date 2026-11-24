@@ -88,7 +88,35 @@
     });
   }
 
+  // The new-font row isn't saved until 新增字體 is pressed, and a redraw rebuilds its fields: what was
+  // typed there is carried over, and cleared once the font has been added.
+  const NEW_FONT_FIELDS = ["new-font-name", "new-font-sort", "new-font-attribution"];
+  let fontsRedrawWaiting = false;
+
   function renderFonts(data, o) {
+    // A redraw replaces every field. One that is being typed in would lose its text — an earlier
+    // save or an upload can finish while a statement is being written — so the redraw waits until
+    // that field is left. A table field left with a change saves itself and reloads; anything else
+    // reloads here.
+    const editing = document.activeElement;
+    const typing = !!editing && $("tab-fonts").contains(editing)
+      && editing.matches("textarea, input:not([type=checkbox]):not([type=file])");
+    if (typing && editing.value !== editing.defaultValue) {
+      if (!fontsRedrawWaiting) {
+        fontsRedrawWaiting = true;
+        editing.addEventListener("blur", () => {
+          fontsRedrawWaiting = false;
+          const savesItself = editing.dataset.font && editing.value !== editing.defaultValue;
+          if (!savesItself) loadFonts();
+        }, { once: true });
+      }
+      return;
+    }
+    // Redrawing now: a field that was waited for is replaced along with the rest, and a replaced
+    // field never reports being left.
+    fontsRedrawWaiting = false;
+    const draft = NEW_FONT_FIELDS.map((id) => ($(id) ? $(id).value : ""));
+    const draftLicensed = !!$("new-font-licensed") && $("new-font-licensed").checked;
     const release = data.release;
     const publishedIds = new Set(release ? release.content.fonts.map((f) => f.id) : []);
     const unpublished = data.fonts.some((f) => f.download_url && (!f.published ||
@@ -97,7 +125,8 @@
         <td>${f.id}</td>
         <td><input data-font="${f.id}" data-f="name" value="${esc(f.name)}" class="cell-name"></td>
         <td><input data-font="${f.id}" data-f="sort" value="${f.sort}" class="cell-sort" inputmode="numeric"></td>
-        <td><label><input type="checkbox" data-font="${f.id}" data-f="licensed" ${f.licensed ? "checked" : ""}> Licensed</label></td>
+        <td><label><input type="checkbox" data-font="${f.id}" data-f="licensed" ${f.licensed ? "checked" : ""}> Licensed</label>
+          <textarea data-font="${f.id}" data-f="attribution" class="cell-attribution" rows="2" maxlength="500" placeholder="Source and licence statement">${esc(f.attribution)}</textarea></td>
         <td><label><input type="checkbox" data-font="${f.id}" data-f="disabled" ${f.disabled ? "checked" : ""}> Disabled</label></td>
         <td>${f.download_url
           ? `<span title="${esc(f.file_name)}">Installed ${mb(f.font_bytes)}<br><span class="muted">Download ${mb(f.download_bytes)}</span></span>`
@@ -112,7 +141,8 @@
       <div class="card">
         <p class="muted">Upload the <code>.otf.gz</code> made by the <strong>font subsetting tool</strong> (tools/ in the meta repo).
         Changes are saved as a draft; the App gets the new list only after "Publish". IDs never change and are never reused; a published font can't be deleted, only disabled.
-        "Licensed" is only a label and doesn't block uploads. The built-in Noto Sans TC is not in this list.</p>
+        "Licensed" is only a label and doesn't block uploads. The built-in Noto Sans TC is not in this list.
+        The "source and licence statement" is shown as written on the font settings page and the open-source licences page of the App. Fill it in for fonts whose licence requires naming the source; leave it empty for the rest.</p>
         <div class="row"><strong>Font list</strong><span class="muted">Published: ${esc(release ? release.version : "none")}</span>
           ${unpublished ? '<span class="pill warn">The draft has unpublished changes</span>' : '<span class="pill">Same as published</span>'}
           <span class="grow"></span><button id="publish-fonts" class="primary">Publish</button></div>
@@ -123,13 +153,28 @@
         <div class="row" style="margin-top:8px"><input id="new-font-name" class="field-name" placeholder="Font name (as shown in the App)">
           <input id="new-font-sort" class="cell-sort" placeholder="Order" inputmode="numeric">
           <label><input type="checkbox" id="new-font-licensed"> Licensed</label>
+          <input id="new-font-attribution" class="field-name" maxlength="500" placeholder="Source and licence statement (optional)">
           <button id="add-font">Add font</button></div>
       </div>`;
+    NEW_FONT_FIELDS.forEach((id, i) => { $(id).value = draft[i]; });
+    $("new-font-licensed").checked = draftLicensed;
     bindFonts();
+    if (typing) {
+      // The cursor stays in the field it was in (the field itself is a new element now).
+      const same = editing.id ? $(editing.id)
+        : document.querySelector(`[data-font="${editing.dataset.font}"][data-f="${editing.dataset.f}"]`);
+      if (same) {
+        same.focus();
+        same.setSelectionRange(editing.selectionStart, editing.selectionEnd);
+      }
+    }
   }
 
+  // What a publish would change. A list published without the attribution key counts as an empty
+  // one, so it only shows as an unpublished change once a statement has been written.
   function pick(f) {
-    return { name: f.name, sort: f.sort, disabled: f.disabled, licensed: f.licensed, file_name: f.file_name };
+    return { name: f.name, sort: f.sort, disabled: f.disabled, licensed: f.licensed, attribution: f.attribution || "",
+      file_name: f.file_name };
   }
 
   function bindFonts() {
@@ -144,7 +189,9 @@
     $("add-font").onclick = () => run(async () => {
       const sort = parseInt($("new-font-sort").value || "0", 10);
       await api.call("POST", "/api/admin/fonts", { name: $("new-font-name").value, sort: isNaN(sort) ? 0 : sort,
-        licensed: $("new-font-licensed").checked });
+        licensed: $("new-font-licensed").checked, attribution: $("new-font-attribution").value });
+      for (const id of NEW_FONT_FIELDS) $(id).value = "";
+      $("new-font-licensed").checked = false;
       await loadFonts();
     }, "Added. Now upload the font file");
     document.querySelectorAll("[data-font]").forEach((el) => {
