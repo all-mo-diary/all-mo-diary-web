@@ -69,13 +69,13 @@
     try { await api.call("POST", "/api/admin/logout"); } finally { api.setToken(null); showLogin(); }
   });
 
-  const TABS = ["fonts", "version", "feedback", "admins", "system"];
+  const TABS = ["fonts", "version", "feedback", "admins", "audit", "system"];
   $("tabs").onclick = (ev) => {
     const tab = ev.target.dataset && ev.target.dataset.tab;
     if (!tab) return;
     for (const b of $("tabs").querySelectorAll("button")) b.classList.toggle("active", b.dataset.tab === tab);
     for (const t of TABS) $("tab-" + t).hidden = t !== tab;
-    ({ fonts: loadFonts, version: loadVersion, feedback: loadFeedback, admins: loadAdmins, system: loadSystem })[tab]();
+    ({ fonts: loadFonts, version: loadVersion, feedback: loadFeedback, admins: loadAdmins, audit: loadAudit, system: loadSystem })[tab]();
   };
 
   // ── Fonts ───────────────────────────────────────────────
@@ -391,6 +391,38 @@
           run(async () => { await api.call("DELETE", "/api/admin/admins/" + encodeURIComponent(b.dataset.rm)); await loadAdmins(); }, "Removed");
         };
       });
+    });
+  }
+
+  // ── Audit log ───────────────────────────────────────────
+  // Read-only: who changed what in this console, newest first. The backend records every write and
+  // every refused request (router-backend shared/audit_log.py) and keeps 180 days.
+  const AUDIT_ACTIONS = {
+    login: "Sign in", logout: "Sign out", reload_cache: "Reload cache",
+    create_font: "Add font", update_font: "Edit font", delete_font: "Delete font", upload_font_file: "Upload font file", publish_fonts: "Publish font list",
+    put_app_config: "Edit app version settings",
+    update_feedback: "Edit feedback", delete_feedback: "Delete feedback", delete_feedback_by_email: "Delete feedback by email",
+    add_admin: "Add admin", remove_admin: "Remove admin",
+  };
+  const AUDIT_RESULTS = { ok: "OK", denied: "Refused", failed: "Failed" };
+  let auditRows = [];
+
+  async function loadAudit(more) {
+    await run(async () => {
+      const before = more && auditRows.length ? "?before=" + auditRows[auditRows.length - 1].id : "";
+      const data = await api.call("GET", "/api/admin/audit" + before);
+      auditRows = more ? auditRows.concat(data.items) : data.items;
+      const label = (a) => AUDIT_ACTIONS[String(a).split(".").pop()] || a;
+      $("tab-audit").innerHTML = `<div class="card admin">
+        <table><thead><tr><th>Time</th><th>Account</th><th>Action</th><th>Target</th><th>Result</th></tr></thead><tbody>
+        ${auditRows.map((r) => `<tr><td>${esc(fmtTime(r.at))}</td><td>${esc(r.actor || "-")}</td><td>${esc(label(r.action))}</td>
+          <td>${esc(r.target || "-")}</td><td class="${r.result === "ok" ? "" : "warn"}">${esc(AUDIT_RESULTS[r.result] || r.result)}</td></tr>`).join("")}
+        </tbody></table>
+        ${data.items.length === 50 ? '<div class="row" style="margin-top:8px"><button id="audit-more">Load older</button></div>' : ""}
+        <p class="muted">Read-only: nothing here can be edited or deleted. Kept for 180 days.</p>
+      </div>`;
+      const moreBtn = $("audit-more");
+      if (moreBtn) moreBtn.onclick = () => loadAudit(true);
     });
   }
 

@@ -101,6 +101,7 @@
       if (route === "/api/admin/fonts") return { fonts: fx.fonts, release: fx.release };
       if (route === "/api/admin/app-config") return { ...fx.appConfig };
       if (route === "/api/admin/admins") return { admins: fx.admins };
+      if (route === "/api/admin/audit") return { items: new URLSearchParams(query).get("before") ? [] : fx.audit };
       if (route === "/api/admin/feedback") return feedbackList(query);
       const m = route.match(/^\/api\/admin\/feedback\/(.+)$/);
       if (m) {

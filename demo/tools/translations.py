@@ -91,6 +91,7 @@ ADMIN_HTML = [
     (">App 版本</button>", ">App version</button>"),
     (">意見回饋</button>", ">Feedback</button>"),
     (">管理員</button>", ">Admins</button>"),
+    (">操作紀錄</button>", ">Audit log</button>"),
     (">系統</button>", ">System</button>"),
 ]
 
@@ -211,6 +212,22 @@ ADMIN = [
     ('placeholder="備註"', 'placeholder="Note"'),
     (">新增管理員</button>", ">Add admin</button>"),
     ("`確定移除 ${b.dataset.rm}？`", "`Remove ${b.dataset.rm}?`"),
+    # 操作紀錄
+    ('login: "登入", logout: "登出", reload_cache: "重新載入快取",', 'login: "Sign in", logout: "Sign out", reload_cache: "Reload cache",'),
+    (
+        'create_font: "新增字體", update_font: "修改字體", delete_font: "刪除字體", upload_font_file: "上傳字體檔", publish_fonts: "發布字體清單",',
+        'create_font: "Add font", update_font: "Edit font", delete_font: "Delete font", upload_font_file: "Upload font file", publish_fonts: "Publish font list",',
+    ),
+    ('put_app_config: "修改 App 版本設定",', 'put_app_config: "Edit app version settings",'),
+    (
+        'update_feedback: "修改意見回饋", delete_feedback: "刪除意見回饋", delete_feedback_by_email: "依 Email 刪除意見回饋",',
+        'update_feedback: "Edit feedback", delete_feedback: "Delete feedback", delete_feedback_by_email: "Delete feedback by email",',
+    ),
+    ('add_admin: "新增管理員", remove_admin: "移除管理員",', 'add_admin: "Add admin", remove_admin: "Remove admin",'),
+    ('{ ok: "成功", denied: "被拒", failed: "失敗" }', '{ ok: "OK", denied: "Refused", failed: "Failed" }'),
+    ("<th>時間</th><th>帳號</th><th>動作</th><th>對象</th><th>結果</th>", "<th>Time</th><th>Account</th><th>Action</th><th>Target</th><th>Result</th>"),
+    (">載入更早的</button>", ">Load older</button>"),
+    ("只能看，不能改或刪；保留 180 天。", "Read-only: nothing here can be edited or deleted. Kept for 180 days."),
     # 系統
     (
         '快取的字體清單版本：${esc(o.cache.loaded ? (o.cache.fonts_version || "還沒發布") : "還沒載入")}',

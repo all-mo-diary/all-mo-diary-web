@@ -68,13 +68,13 @@
     try { await api.call("POST", "/api/admin/logout"); } finally { api.setToken(null); showLogin(); }
   });
 
-  const TABS = ["fonts", "version", "feedback", "admins", "system"];
+  const TABS = ["fonts", "version", "feedback", "admins", "audit", "system"];
   $("tabs").onclick = (ev) => {
     const tab = ev.target.dataset && ev.target.dataset.tab;
     if (!tab) return;
     for (const b of $("tabs").querySelectorAll("button")) b.classList.toggle("active", b.dataset.tab === tab);
     for (const t of TABS) $("tab-" + t).hidden = t !== tab;
-    ({ fonts: loadFonts, version: loadVersion, feedback: loadFeedback, admins: loadAdmins, system: loadSystem })[tab]();
+    ({ fonts: loadFonts, version: loadVersion, feedback: loadFeedback, admins: loadAdmins, audit: loadAudit, system: loadSystem })[tab]();
   };
 
   // ── Fonts ───────────────────────────────────────────────
@@ -390,6 +390,38 @@
           run(async () => { await api.call("DELETE", "/api/admin/admins/" + encodeURIComponent(b.dataset.rm)); await loadAdmins(); }, "已移除");
         };
       });
+    });
+  }
+
+  // ── Audit log ───────────────────────────────────────────
+  // Read-only: who changed what in this console, newest first. The backend records every write and
+  // every refused request (router-backend shared/audit_log.py) and keeps 180 days.
+  const AUDIT_ACTIONS = {
+    login: "登入", logout: "登出", reload_cache: "重新載入快取",
+    create_font: "新增字體", update_font: "修改字體", delete_font: "刪除字體", upload_font_file: "上傳字體檔", publish_fonts: "發布字體清單",
+    put_app_config: "修改 App 版本設定",
+    update_feedback: "修改意見回饋", delete_feedback: "刪除意見回饋", delete_feedback_by_email: "依 Email 刪除意見回饋",
+    add_admin: "新增管理員", remove_admin: "移除管理員",
+  };
+  const AUDIT_RESULTS = { ok: "成功", denied: "被拒", failed: "失敗" };
+  let auditRows = [];
+
+  async function loadAudit(more) {
+    await run(async () => {
+      const before = more && auditRows.length ? "?before=" + auditRows[auditRows.length - 1].id : "";
+      const data = await api.call("GET", "/api/admin/audit" + before);
+      auditRows = more ? auditRows.concat(data.items) : data.items;
+      const label = (a) => AUDIT_ACTIONS[String(a).split(".").pop()] || a;
+      $("tab-audit").innerHTML = `<div class="card admin">
+        <table><thead><tr><th>時間</th><th>帳號</th><th>動作</th><th>對象</th><th>結果</th></tr></thead><tbody>
+        ${auditRows.map((r) => `<tr><td>${esc(fmtTime(r.at))}</td><td>${esc(r.actor || "-")}</td><td>${esc(label(r.action))}</td>
+          <td>${esc(r.target || "-")}</td><td class="${r.result === "ok" ? "" : "warn"}">${esc(AUDIT_RESULTS[r.result] || r.result)}</td></tr>`).join("")}
+        </tbody></table>
+        ${data.items.length === 50 ? '<div class="row" style="margin-top:8px"><button id="audit-more">載入更早的</button></div>' : ""}
+        <p class="muted">只能看，不能改或刪；保留 180 天。</p>
+      </div>`;
+      const moreBtn = $("audit-more");
+      if (moreBtn) moreBtn.onclick = () => loadAudit(true);
     });
   }
 

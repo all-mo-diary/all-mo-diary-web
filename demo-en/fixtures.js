@@ -100,6 +100,14 @@ window.AMD_DEMO_FIXTURES = {
   "updated_at": "2026-11-10T08:30:00+00:00",
   "updated_by": "admin@example.com"
  },
+ "audit": [
+  {"id": 6, "at": "2026-11-12T03:20:00+00:00", "actor": "admin@example.com", "action": "diary_admin.publish_fonts", "target": "", "result": "ok"},
+  {"id": 5, "at": "2026-11-12T03:18:00+00:00", "actor": "admin@example.com", "action": "diary_admin.update_font", "target": "font_id=2", "result": "ok"},
+  {"id": 4, "at": "2026-11-11T09:05:00+00:00", "actor": "stranger@example.com", "action": "diary_admin.login", "target": "", "result": "denied"},
+  {"id": 3, "at": "2026-11-10T08:30:00+00:00", "actor": "admin@example.com", "action": "diary_admin.put_app_config", "target": "", "result": "ok"},
+  {"id": 2, "at": "2026-11-10T08:29:00+00:00", "actor": "admin@example.com", "action": "diary_admin.add_admin", "target": "helper@example.com", "result": "ok"},
+  {"id": 1, "at": "2026-11-10T08:28:00+00:00", "actor": "admin@example.com", "action": "diary_admin.login", "target": "", "result": "ok"}
+ ],
  "admins": [
   {
    "email": "admin@example.com",
