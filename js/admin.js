@@ -22,9 +22,9 @@
   // instead of overwriting the newer screen.
   const gen = { fonts: 0, feedback: 0, detail: 0 };
   let feedbackFilters = { kind: "", status: "", app_version: "", device_model: "", page: 1 };
-  // Font uploads in progress: font id → progress (0–1). Kept here, not in the table: the table is
-  // rebuilt by any edit, publish or tab switch during an upload, and the rebuilt row must still show
-  // the upload and not offer a second one.
+  // Font uploads in progress: font id → progress (0–1). Kept here, not on the page: the font list is
+  // rebuilt by any edit, publish or tab switch during an upload, and the rebuilt entry must still
+  // show the upload and not offer a second one.
   const uploading = new Map();
 
   function message(text, kind) {
@@ -87,7 +87,7 @@
     });
   }
 
-  // The new-font row isn't saved until 新增字體 is pressed, and a redraw rebuilds its fields: what was
+  // The new-font form isn't saved until 新增字體 is pressed, and a redraw rebuilds its fields: what was
   // typed there is carried over, and cleared once the font has been added.
   const NEW_FONT_FIELDS = ["new-font-name", "new-font-sort", "new-font-attribution"];
   let fontsRedrawWaiting = false;
@@ -95,8 +95,8 @@
   function renderFonts(data, o) {
     // A redraw replaces every field. One that is being typed in would lose its text — an earlier
     // save or an upload can finish while a statement is being written — so the redraw waits until
-    // that field is left. A table field left with a change saves itself and reloads; anything else
-    // reloads here.
+    // that field is left. A font's own field left with a change saves itself and reloads; anything
+    // else reloads here.
     const editing = document.activeElement;
     const typing = !!editing && $("tab-fonts").contains(editing)
       && editing.matches("textarea, input:not([type=checkbox]):not([type=file])");
@@ -120,41 +120,62 @@
     const publishedIds = new Set(release ? release.content.fonts.map((f) => f.id) : []);
     const unpublished = data.fonts.some((f) => f.download_url && (!f.published ||
       JSON.stringify(pick(f)) !== JSON.stringify(pick(release.content.fonts.find((r) => r.id === f.id) || {}))));
-    const rows = data.fonts.map((f) => `<tr>
-        <td>${f.id}</td>
-        <td><input data-font="${f.id}" data-f="name" value="${esc(f.name)}" class="cell-name"></td>
-        <td><input data-font="${f.id}" data-f="sort" value="${f.sort}" class="cell-sort" inputmode="numeric"></td>
-        <td><label><input type="checkbox" data-font="${f.id}" data-f="licensed" ${f.licensed ? "checked" : ""}> 有授權</label>
-          <textarea data-font="${f.id}" data-f="attribution" class="cell-attribution" rows="2" maxlength="500" placeholder="來源／授權說明">${esc(f.attribution)}</textarea></td>
-        <td><label><input type="checkbox" data-font="${f.id}" data-f="disabled" ${f.disabled ? "checked" : ""}> 停用</label></td>
-        <td>${f.download_url
-          ? `<span title="${esc(f.file_name)}">安裝後 ${mb(f.font_bytes)}<br><span class="muted">下載 ${mb(f.download_bytes)}</span></span>`
-          : '<span class="muted">還沒上傳</span>'}
-          <br><input type="file" accept=".gz,application/gzip" data-upload="${f.id}" ${o.fonts_upload_configured && !uploading.has(f.id) ? "" : "disabled"}>
-          <progress data-progress="${f.id}" max="1" value="${uploading.get(f.id) || 0}" ${uploading.has(f.id) ? "" : "hidden"}></progress></td>
-        <td>${f.published || publishedIds.has(f.id) ? '<span class="muted">已發布</span>' : `<button data-del-font="${f.id}" class="danger">刪除</button>`}</td>
-      </tr>`).join("");
+    // One block per font, every control under its name: a table cell has no room for a name above
+    // the control or for a statement of several lines, and on a phone no room at all.
+    const items = data.fonts.map((f) => `<div class="font-item">
+        <div class="row font-head"><strong>ID ${f.id}</strong>
+          ${f.published || publishedIds.has(f.id) ? '<span class="muted">已發布</span>' : `<button data-del-font="${f.id}" class="danger push">刪除</button>`}</div>
+        <div class="font-fields">
+          <div class="font-main">
+            <div class="row">
+              <label class="field grow">名稱<input data-font="${f.id}" data-f="name" value="${esc(f.name)}"></label>
+              <label class="field field-short">排序<input data-font="${f.id}" data-f="sort" value="${f.sort}" inputmode="numeric"></label>
+            </div>
+            <div class="row checks">
+              <label><input type="checkbox" data-font="${f.id}" data-f="licensed" ${f.licensed ? "checked" : ""}> 有授權</label>
+              <label><input type="checkbox" data-font="${f.id}" data-f="disabled" ${f.disabled ? "checked" : ""}> 停用</label>
+            </div>
+            <div class="field">檔案
+              <div class="file-info">${f.download_url
+                ? `<span title="${esc(f.file_name)}">安裝後 ${mb(f.font_bytes)}，下載 ${mb(f.download_bytes)}</span>`
+                : '<span class="muted">還沒上傳</span>'}
+                <input type="file" accept=".gz,application/gzip" data-upload="${f.id}" ${o.fonts_upload_configured && !uploading.has(f.id) ? "" : "disabled"}>
+                <progress data-progress="${f.id}" max="1" value="${uploading.get(f.id) || 0}" ${uploading.has(f.id) ? "" : "hidden"}></progress>
+              </div>
+            </div>
+          </div>
+          <label class="field">來源／授權說明<textarea data-font="${f.id}" data-f="attribution" rows="4" maxlength="500">${esc(f.attribution)}</textarea></label>
+        </div>
+      </div>`).join("");
     $("tab-fonts").innerHTML = `
       ${o.fonts_upload_configured ? "" : '<div class="banner warn">後端還沒設定字體的 GitHub repo（ALL_MO_DIARY__FONTS_REPO、ALL_MO_DIARY__GITHUB_TOKEN），目前不能上傳。</div>'}
       ${o.cache_consistent ? "" : '<div class="banner warn">快取版本和資料庫版本不一致，請到「系統」按「重新載入快取」。</div>'}
       <div class="card">
-        <p class="muted">上傳的是<strong>字體瘦身工具</strong>產生的 <code>.otf.gz</code>（meta repo 的 tools/字體瘦身.command）。
-        修改會先存成草稿，按「發布」才會讓 App 下載新的清單。ID 永遠不可改、不可重用；發布過的字體不能刪除，只能停用。
-        「有授權」只是標示，不會擋上傳。內建的 Noto Sans TC 不在這個清單裡。
-        「來源／授權說明」會照原樣顯示在 App 的字體設定頁與開放原始碼授權頁；授權條款要求標示來源的字體一定要填，不需要的可以留空。</p>
-        <div class="row"><strong>字體清單</strong><span class="muted">目前發布：${esc(release ? release.version : "沒有")}</span>
+        <div class="row"><h3>字體清單</h3><span class="muted">目前發布：${esc(release ? release.version : "沒有")}</span>
           ${unpublished ? '<span class="pill warn">草稿有未發布的修改</span>' : '<span class="pill">和發布版本一樣</span>'}
-          <span class="grow"></span><button id="publish-fonts" class="primary">發布</button></div>
+          <button id="publish-fonts" class="primary push">發布</button></div>
+        ${items || '<p class="muted">還沒有字體</p>'}
       </div>
-      <div class="card admin">
-        <div class="scroll-x"><table><thead><tr><th>ID</th><th>名稱</th><th>排序</th><th>授權</th><th></th><th>檔案</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" class="muted">還沒有字體</td></tr>'}</tbody></table></div>
-        <div class="row" style="margin-top:8px"><input id="new-font-name" class="field-name" placeholder="字體名稱（App 上顯示的名稱）">
-          <input id="new-font-sort" class="cell-sort" placeholder="排序" inputmode="numeric">
-          <label><input type="checkbox" id="new-font-licensed"> 有授權</label>
-          <input id="new-font-attribution" class="field-name" maxlength="500" placeholder="來源／授權說明（可以留空）">
-          <button id="add-font">新增字體</button></div>
-      </div>`;
+      <div class="card">
+        <h3>新增字體</h3>
+        <div class="font-fields">
+          <div class="font-main">
+            <div class="row">
+              <label class="field grow">名稱<input id="new-font-name" placeholder="App 上顯示的名稱"></label>
+              <label class="field field-short">排序<input id="new-font-sort" inputmode="numeric"></label>
+            </div>
+            <div class="row checks"><label><input type="checkbox" id="new-font-licensed"> 有授權</label></div>
+          </div>
+          <label class="field">來源／授權說明（可以留空）<textarea id="new-font-attribution" rows="3" maxlength="500"></textarea></label>
+        </div>
+        <div class="row actions"><button id="add-font">新增字體</button></div>
+      </div>
+      <ul class="notes">
+        <li>上傳的是<strong>字體瘦身工具</strong>產生的 <code>.otf.gz</code>（meta repo 的 tools/字體瘦身.command）。</li>
+        <li>修改會先存成草稿，按「發布」才會讓 App 下載新的清單。ID 永遠不可改、不可重用；發布過的字體不能刪除，只能停用。</li>
+        <li>「有授權」只是標示，不會擋上傳。內建的 Noto Sans TC 不在這個清單裡。</li>
+        <li>「來源／授權說明」會照原樣顯示在 App 的字體設定頁與開放原始碼授權頁；授權條款要求標示來源的字體一定要填，不需要的可以留空。</li>
+      </ul>`;
     NEW_FONT_FIELDS.forEach((id, i) => { $(id).value = draft[i]; });
     $("new-font-licensed").checked = draftLicensed;
     bindFonts();
@@ -224,7 +245,7 @@
         if (uploading.has(id)) return;
         uploading.set(id, 0);
         input.disabled = true;
-        // Looked up on every update: the table may have been rebuilt since the upload started.
+        // Looked up on every update: the list may have been rebuilt since the upload started.
         const showProgress = () => {
           const bar = document.querySelector(`[data-progress="${id}"]`);
           if (bar) { bar.hidden = false; bar.value = uploading.get(id) || 0; }
@@ -234,7 +255,7 @@
           try {
             await api.upload(`/api/admin/fonts/${id}/file`, file, (p) => { uploading.set(id, p); showProgress(); });
           } finally {
-            // Success or failure, the row is rebuilt from the server without the upload state.
+            // Success or failure, the entry is rebuilt from the server without the upload state.
             uploading.delete(id);
             await loadFonts();
           }
@@ -249,10 +270,12 @@
       const c = await api.call("GET", "/api/admin/app-config");
       $("tab-version").innerHTML = `<div class="card">
         <p class="muted">強制更新只在重大問題或法律衝突時使用；只對有網路、而且有做每日檢查的手機生效。畫面上會顯示這裡寫的原因。</p>
-        <p><label>最低可用 App 版本（x.y.z）<br><input id="cfg-min" value="${esc(c.min_app_version)}"></label></p>
-        <p><label>強制更新的原因<br><textarea id="cfg-reason" maxlength="300">${esc(c.force_reason)}</textarea></label></p>
-        <p><label>更新連結（https://，上架前可以留空）<br><input id="cfg-url" value="${esc(c.update_url)}" style="width:100%"></label></p>
-        <p><label>公告（App 每日檢查時顯示一次，留空就不顯示）<br><input id="cfg-ann" value="${esc(c.announcement)}" style="width:100%" maxlength="300"></label></p>
+        <div class="form">
+          <label class="field">最低可用 App 版本（x.y.z）<input id="cfg-min" class="short" value="${esc(c.min_app_version)}"></label>
+          <label class="field">強制更新的原因<textarea id="cfg-reason" maxlength="300">${esc(c.force_reason)}</textarea></label>
+          <label class="field">更新連結（https://，上架前可以留空）<input id="cfg-url" value="${esc(c.update_url)}"></label>
+          <label class="field">公告（App 每日檢查時顯示一次，留空就不顯示）<input id="cfg-ann" value="${esc(c.announcement)}" maxlength="300"></label>
+        </div>
         <p class="muted">最後修改：${esc(fmtTime(c.updated_at))} ${esc(c.updated_by)}</p>
         <button id="cfg-save" class="primary">儲存</button></div>`;
       $("cfg-save").onclick = () => {
@@ -280,38 +303,43 @@
       if (mine !== gen.feedback) return;
       const opt = (values, labels, current) => '<option value="">全部</option>' +
         values.map((v) => `<option value="${esc(v)}" ${v === current ? "selected" : ""}>${esc(labels ? labels[v] : v)}</option>`).join("");
-      $("tab-feedback").innerHTML = `<div class="card admin">
-          <div class="row">
-            <select id="f-kind">${opt(Object.keys(KIND), KIND, feedbackFilters.kind)}</select>
-            <select id="f-status">${opt(Object.keys(STATUS), STATUS, feedbackFilters.status)}</select>
-            <select id="f-ver">${opt(data.app_versions, null, feedbackFilters.app_version)}</select>
-            <select id="f-model">${opt(data.device_models, null, feedbackFilters.device_model)}</select>
-            <span class="muted">共 ${data.total} 則（最長保留 90 天）</span>
+      // The version and the phone model go under the description: as columns of their own they
+      // would leave the description, the one long text, the narrowest column.
+      const pages = data.page > 1 || data.page * data.per_page < data.total;
+      $("tab-feedback").innerHTML = `<div class="card">
+          <div class="toolbar">
+            <label class="field">類型<select id="f-kind">${opt(Object.keys(KIND), KIND, feedbackFilters.kind)}</select></label>
+            <label class="field">狀態<select id="f-status">${opt(Object.keys(STATUS), STATUS, feedbackFilters.status)}</select></label>
+            <label class="field">版本<select id="f-ver">${opt(data.app_versions, null, feedbackFilters.app_version)}</select></label>
+            <label class="field">機型<select id="f-model">${opt(data.device_models, null, feedbackFilters.device_model)}</select></label>
+            <span class="muted count">共 ${data.total} 則（最長保留 90 天）</span>
           </div>
-          <div class="scroll-x"><table><thead><tr><th>時間</th><th>類型</th><th>狀態</th><th>描述</th><th>版本</th><th>機型</th></tr></thead><tbody>
-          ${data.items.map((i) => `<tr data-fb="${i.id}" style="cursor:pointer">
-            <td>${esc(fmtTime(i.received_at))}</td><td>${esc(KIND[i.kind])}</td><td>${esc(STATUS[i.status])}</td>
-            <td>${esc(i.description)}</td><td>${esc(i.app_version)}</td><td>${esc(i.device_model)}</td></tr>`).join("") ||
-            '<tr><td colspan="6" class="muted">沒有意見回饋</td></tr>'}
+          <div class="scroll-x"><table><thead><tr><th>時間</th><th>類型</th><th>狀態</th><th>描述</th></tr></thead><tbody>
+          ${data.items.map((i) => `<tr data-fb="${i.id}">
+            <td class="nowrap aside minor">${esc(fmtTime(i.received_at))}</td><td class="nowrap">${esc(KIND[i.kind])}</td><td class="nowrap">${esc(STATUS[i.status])}</td>
+            <td class="line breakable">${esc(i.description)}<span class="muted sub">App ${esc(i.app_version)} · ${esc(i.device_model)}</span></td></tr>`).join("") ||
+            '<tr><td colspan="4" class="muted">沒有意見回饋</td></tr>'}
           </tbody></table></div>
-          <div class="row" style="margin-top:8px">
+          ${pages ? `<div class="row actions">
             <button id="f-prev" ${data.page <= 1 ? "disabled" : ""}>上一頁</button>
             <span class="muted">第 ${data.page} 頁</span>
             <button id="f-next" ${data.page * data.per_page >= data.total ? "disabled" : ""}>下一頁</button>
-          </div>
+          </div>` : ""}
         </div>
         <div id="fb-detail"></div>
-        <div class="card"><h3 style="margin-top:0">個資刪除請求</h3>
+        <div class="card"><h3>個資刪除請求</h3>
           <p class="muted">刪掉某個 Email 的所有意見回饋（隱私權政策第七條）。</p>
-          <div class="row"><input id="del-email" class="field-name" placeholder="email@example.com"><button id="del-email-btn" class="danger">全部刪除</button></div>
+          <div class="row"><input id="del-email" class="field-wide" placeholder="email@example.com"><button id="del-email-btn" class="danger">全部刪除</button></div>
         </div>`;
       const set = (k) => (ev) => { feedbackFilters[k] = ev.target.value; feedbackFilters.page = 1; loadFeedback(); };
       $("f-kind").onchange = set("kind");
       $("f-status").onchange = set("status");
       $("f-ver").onchange = set("app_version");
       $("f-model").onchange = set("device_model");
-      $("f-prev").onclick = () => { feedbackFilters.page -= 1; loadFeedback(); };
-      $("f-next").onclick = () => { feedbackFilters.page += 1; loadFeedback(); };
+      if (pages) {
+        $("f-prev").onclick = () => { feedbackFilters.page -= 1; loadFeedback(); };
+        $("f-next").onclick = () => { feedbackFilters.page += 1; loadFeedback(); };
+      }
       document.querySelectorAll("[data-fb]").forEach((tr) => { tr.onclick = () => showFeedback(tr.dataset.fb); });
       $("del-email-btn").onclick = () => {
         const email = $("del-email").value.trim();
@@ -342,8 +370,8 @@
       const f = await api.call("GET", "/api/admin/feedback/" + id);
       if (mine !== gen.detail) return;
       $("fb-detail").innerHTML = `<div class="card">
-        <div class="row"><strong>${esc(KIND[f.kind])}</strong><span class="muted">${esc(f.id)}</span><span class="grow"></span>
-          <button id="fb-close">關閉</button></div>
+        <div class="row detail-head"><div><strong>${esc(KIND[f.kind])}</strong><span class="muted breakable">${esc(f.id)}</span></div>
+          <button id="fb-close" class="push">關閉</button></div>
         <p>${esc(f.description).replace(/\n/g, "<br>")}</p>
         <p class="muted">Email：${esc(f.email)}｜收到：${esc(fmtTime(f.received_at))}｜手機時間：${esc(fmtTime(f.device_time))}<br>
         App ${esc(f.app_version)}（${esc(f.build_number)}）｜${esc(f.device_model)}｜${esc(f.os_version)}｜安裝 ID ${esc(f.install_id)}</p>
@@ -373,12 +401,12 @@
   async function loadAdmins() {
     await run(async () => {
       const data = await api.call("GET", "/api/admin/admins");
-      $("tab-admins").innerHTML = `<div class="card admin">
-        <table><thead><tr><th>Email</th><th>備註</th><th></th></tr></thead><tbody>
-        ${data.admins.map((a) => `<tr><td>${esc(a.email)}</td><td>${esc(a.note)}</td>
-          <td>${a.fixed ? '<span class="muted">環境變數設定</span>' : `<button data-rm="${esc(a.email)}" class="danger">移除</button>`}</td></tr>`).join("")}
-        </tbody></table>
-        <div class="row" style="margin-top:8px"><input id="adm-email" class="field-name" placeholder="Email"><input id="adm-note" class="field-name" placeholder="備註"><button id="adm-add" class="primary">新增管理員</button></div>
+      $("tab-admins").innerHTML = `<div class="card">
+        <div class="scroll-x"><table><thead><tr><th>Email</th><th>備註</th><th></th></tr></thead><tbody>
+        ${data.admins.map((a) => `<tr><td class="lead">${esc(a.email)}</td><td class="line minor breakable">${esc(a.note)}</td>
+          <td class="nowrap aside">${a.fixed ? '<span class="muted">環境變數設定</span>' : `<button data-rm="${esc(a.email)}" class="danger">移除</button>`}</td></tr>`).join("")}
+        </tbody></table></div>
+        <div class="row add-row"><label class="field field-wide">Email<input id="adm-email"></label><label class="field field-wide">備註<input id="adm-note"></label><button id="adm-add" class="primary">新增管理員</button></div>
       </div>`;
       $("adm-add").onclick = () => run(async () => {
         await api.call("POST", "/api/admin/admins", { email: $("adm-email").value.trim(), note: $("adm-note").value.trim() });
@@ -412,12 +440,12 @@
       const data = await api.call("GET", "/api/admin/audit" + before);
       auditRows = more ? auditRows.concat(data.items) : data.items;
       const label = (a) => AUDIT_ACTIONS[String(a).split(".").pop()] || a;
-      $("tab-audit").innerHTML = `<div class="card admin">
-        <table><thead><tr><th>時間</th><th>帳號</th><th>動作</th><th>對象</th><th>結果</th></tr></thead><tbody>
-        ${auditRows.map((r) => `<tr><td>${esc(fmtTime(r.at))}</td><td>${esc(r.actor || "-")}</td><td>${esc(label(r.action))}</td>
-          <td>${esc(r.target || "-")}</td><td class="${r.result === "ok" ? "" : "warn"}">${esc(AUDIT_RESULTS[r.result] || r.result)}</td></tr>`).join("")}
-        </tbody></table>
-        ${data.items.length === 50 ? '<div class="row" style="margin-top:8px"><button id="audit-more">載入更早的</button></div>' : ""}
+      $("tab-audit").innerHTML = `<div class="card">
+        <div class="scroll-x"><table><thead><tr><th>時間</th><th>帳號</th><th>動作</th><th>對象</th><th>結果</th></tr></thead><tbody>
+        ${auditRows.map((r) => `<tr><td class="nowrap line minor last">${esc(fmtTime(r.at))}</td><td class="line">${esc(r.actor || "-")}</td><td class="lead">${esc(label(r.action))}</td>
+          <td class="line minor breakable${r.target ? "" : " empty"}">${esc(r.target || "-")}</td><td class="nowrap aside${r.result === "ok" ? "" : " warn"}">${esc(AUDIT_RESULTS[r.result] || r.result)}</td></tr>`).join("")}
+        </tbody></table></div>
+        ${data.items.length === 50 ? '<div class="row actions"><button id="audit-more">載入更早的</button></div>' : ""}
         <p class="muted">只能看，不能改或刪；保留 180 天。</p>
       </div>`;
       const moreBtn = $("audit-more");

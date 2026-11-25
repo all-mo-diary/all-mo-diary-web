@@ -112,16 +112,6 @@ textarea { width: 100%; min-height: 4em; }
 @media (prefers-color-scheme: dark) { :root { --danger: #f59a92; --ok: #8ed6b5; --warn: #f6cf7a; } }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .tabs button.active { background: var(--surface); border-color: var(--accent); }
-.admin table { min-width: 0; width: 100%; }
-.field-name { flex: 1 1 12em; min-width: 10em; }
-.cell-name { width: 100%; min-width: 8em; }
-.cell-sort { width: 4.5em; }
-/* The statement under the 有授權 box: a block of its own, wide enough to read a source line in. */
-.cell-attribution { display: block; margin-top: 6px; min-width: 14em; min-height: 3.2em; }
-/* Font table: keep the checkbox labels and the delete button on one line; the file picker is
-   the column that gives way (its 未選擇任何檔案 text is cut short instead of pushing the others). */
-.admin td label, .admin td button { white-space: nowrap; }
-.admin td input[type=file] { width: 15em; max-width: 100%; }
 .pill { display: inline-block; border-radius: 999px; padding: 0 10px; background: var(--surface2); font-size: 12px; }
 .banner { border-radius: 14px; padding: 10px 14px; margin-bottom: 12px; background: var(--surface2); }
 .banner.warn { border: 1px solid var(--warn); }
@@ -130,6 +120,101 @@ textarea { width: 100%; min-height: 4em; }
 .danger { color: var(--danger); }
 pre.log { white-space: pre-wrap; word-break: break-all; font-size: 12px; background: var(--surface2); border-radius: 12px; padding: 10px; max-height: 420px; overflow: auto; }
 progress { width: 10em; }
+
+/* Admin console layout (admin.html has <body class="console">). The rules that touch elements the
+   home and legal pages also use (main, cards, tabs, tables) are scoped to it: those pages keep
+   their narrower reading column and bordered tables. */
+.console main { max-width: 1120px; padding: 24px 20px 40px; }
+.console .card { padding: 24px; margin-bottom: 20px; }
+.console .card > :first-child { margin-top: 0; }
+.console .card > :last-child { margin-bottom: 0; }
+.console h3 { font-size: 16px; margin: 0 0 6px; }
+.console .row > h3 { margin-bottom: 0; }
+.console h4 { margin: 20px 0 8px; }
+/* Tabs read as navigation, not as one more row of buttons: only the current one is outlined. */
+.console .tabs { gap: 4px; margin-bottom: 20px; }
+.console .tabs button:not(.active) { background: transparent; border-color: transparent; color: var(--text2); }
+.console .tabs button:not(.active):hover { background: var(--surface2); }
+.console input, .console select, .console textarea { padding: 7px 12px; }
+.console select { min-height: 40px; }
+.push { margin-left: auto; }
+.nowrap { white-space: nowrap; }
+/* A control with its name above it. */
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 13px; color: var(--muted); }
+.field > input, .field > select, .field > textarea { width: 100%; font-size: 15px; }
+.field > .short { width: 10em; max-width: 100%; }
+.field-short { flex: none; width: 6em; }
+.field-wide { flex: 1 1 14em; max-width: 28em; }
+.form { display: grid; gap: 16px; max-width: 42em; margin: 16px 0; }
+.actions { margin-top: 16px; }
+/* Filters above a list: names above the boxes, the count at the far end. */
+.toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; margin-bottom: 16px; }
+.toolbar .field { min-width: 8em; }
+.toolbar .count { margin-left: auto; padding-bottom: 9px; }
+/* Lists: rows divided by a line, no grid of boxes. */
+.console table { width: 100%; min-width: 0; font-size: 14px; border-collapse: separate; border-spacing: 0; }
+.console th, .console td { border: 0; padding: 12px; }
+.console td { border-top: 1px solid var(--border); }
+.console tbody tr:first-child td { border-top: 0; }
+/* Free text (a description, an id) may break anywhere; an e-mail address in its own column doesn't. */
+.breakable { overflow-wrap: anywhere; }
+.console th { padding: 8px 12px; font-size: 13px; color: var(--text2); white-space: nowrap; }
+.console th:first-child { border-radius: 10px 0 0 10px; }
+.console th:last-child { border-radius: 0 10px 10px 0; }
+/* A button in a row sits on the text line; the row stays as tall as the rows without one. */
+.console td button { min-height: 32px; margin: -5px 0; padding: 3px 14px; white-space: nowrap; }
+.console td .sub { display: block; margin-top: 4px; }
+.console tr[data-fb] { cursor: pointer; }
+.console tr[data-fb]:hover td { background: var(--surface2); }
+.add-row { align-items: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+/* An entry's heading with its close button: the button keeps its corner when the heading wraps. */
+.detail-head { flex-wrap: nowrap; align-items: flex-start; }
+.detail-head > div { min-width: 0; padding-top: 8px; }
+.detail-head strong { margin-right: 12px; }
+.detail-head button { flex: none; }
+/* Font list: one block per font, every control named. The statement gets the second column, wide
+   enough to read a source line in. */
+.font-item { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+.font-head { margin-bottom: 12px; }
+.font-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px 32px; }
+.font-main { display: grid; gap: 14px; align-content: start; }
+.font-main .row { align-items: flex-end; }
+.checks { gap: 8px 24px; }
+.checks label { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; white-space: nowrap; }
+/* What is uploaded now, then the picker under it. On a narrow screen the picker is what gives way:
+   its 未選擇任何檔案 text is cut short. */
+.file-info { display: grid; gap: 6px; justify-items: start; font-size: 14px; color: var(--text); }
+.file-info input[type=file] { width: 16em; max-width: 100%; padding: 5px 8px; font-size: 13px; }
+.notes { margin: 0; padding-left: 1.4em; color: var(--muted); font-size: 13px; }
+.notes li + li { margin-top: 4px; }
+
+/* Below the width a five-column list needs, each row becomes a small block instead of a table row
+   squeezed until its text stands one character to a line. */
+@media (max-width: 880px) {
+  .console table, .console tbody { display: block; }
+  .console thead { display: none; }
+  .console tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .console tbody tr:first-child { border-top: 0; padding-top: 0; }
+  .console tbody tr:last-child { padding-bottom: 0; }
+  .console td { display: block; border: 0; padding: 0; overflow-wrap: anywhere; }
+  .console td button { margin: 0; }
+  .console tr[data-fb]:hover td { background: none; }
+  /* Where each cell goes in the block: .lead starts it, .aside sits at the end of the first line,
+     .line cells take a line each below, .last comes after those. */
+  .console td.lead { font-weight: 500; }
+  .console td.aside { order: 1; margin-left: auto; }
+  .console td.line { order: 2; flex-basis: 100%; }
+  .console td.last { order: 3; }
+  .console td.minor { color: var(--muted); font-size: 13px; }
+  .console td.empty { display: none; }
+}
+/* Phones: less padding, filters two to a line. */
+@media (max-width: 640px) {
+  .console main { padding: 16px 12px 32px; }
+  .console .card { padding: 16px; margin-bottom: 14px; }
+  .toolbar .field { flex: 1 1 40%; }
+  .toolbar .count { margin-left: 0; padding-bottom: 0; flex-basis: 100%; }
+}
 
 /* .btn and other elements that set display override the browser's built-in [hidden] rule
    (the 管理後台 link showed before signing in); force it back. */

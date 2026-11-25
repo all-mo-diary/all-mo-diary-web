@@ -23,9 +23,9 @@
   // instead of overwriting the newer screen.
   const gen = { fonts: 0, feedback: 0, detail: 0 };
   let feedbackFilters = { kind: "", status: "", app_version: "", device_model: "", page: 1 };
-  // Font uploads in progress: font id → progress (0–1). Kept here, not in the table: the table is
-  // rebuilt by any edit, publish or tab switch during an upload, and the rebuilt row must still show
-  // the upload and not offer a second one.
+  // Font uploads in progress: font id → progress (0–1). Kept here, not on the page: the font list is
+  // rebuilt by any edit, publish or tab switch during an upload, and the rebuilt entry must still
+  // show the upload and not offer a second one.
   const uploading = new Map();
 
   function message(text, kind) {
@@ -88,7 +88,7 @@
     });
   }
 
-  // The new-font row isn't saved until 新增字體 is pressed, and a redraw rebuilds its fields: what was
+  // The new-font form isn't saved until 新增字體 is pressed, and a redraw rebuilds its fields: what was
   // typed there is carried over, and cleared once the font has been added.
   const NEW_FONT_FIELDS = ["new-font-name", "new-font-sort", "new-font-attribution"];
   let fontsRedrawWaiting = false;
@@ -96,8 +96,8 @@
   function renderFonts(data, o) {
     // A redraw replaces every field. One that is being typed in would lose its text — an earlier
     // save or an upload can finish while a statement is being written — so the redraw waits until
-    // that field is left. A table field left with a change saves itself and reloads; anything else
-    // reloads here.
+    // that field is left. A font's own field left with a change saves itself and reloads; anything
+    // else reloads here.
     const editing = document.activeElement;
     const typing = !!editing && $("tab-fonts").contains(editing)
       && editing.matches("textarea, input:not([type=checkbox]):not([type=file])");
@@ -121,41 +121,62 @@
     const publishedIds = new Set(release ? release.content.fonts.map((f) => f.id) : []);
     const unpublished = data.fonts.some((f) => f.download_url && (!f.published ||
       JSON.stringify(pick(f)) !== JSON.stringify(pick(release.content.fonts.find((r) => r.id === f.id) || {}))));
-    const rows = data.fonts.map((f) => `<tr>
-        <td>${f.id}</td>
-        <td><input data-font="${f.id}" data-f="name" value="${esc(f.name)}" class="cell-name"></td>
-        <td><input data-font="${f.id}" data-f="sort" value="${f.sort}" class="cell-sort" inputmode="numeric"></td>
-        <td><label><input type="checkbox" data-font="${f.id}" data-f="licensed" ${f.licensed ? "checked" : ""}> Licensed</label>
-          <textarea data-font="${f.id}" data-f="attribution" class="cell-attribution" rows="2" maxlength="500" placeholder="Source and licence statement">${esc(f.attribution)}</textarea></td>
-        <td><label><input type="checkbox" data-font="${f.id}" data-f="disabled" ${f.disabled ? "checked" : ""}> Disabled</label></td>
-        <td>${f.download_url
-          ? `<span title="${esc(f.file_name)}">Installed ${mb(f.font_bytes)}<br><span class="muted">Download ${mb(f.download_bytes)}</span></span>`
-          : '<span class="muted">Not uploaded</span>'}
-          <br><input type="file" accept=".gz,application/gzip" data-upload="${f.id}" ${o.fonts_upload_configured && !uploading.has(f.id) ? "" : "disabled"}>
-          <progress data-progress="${f.id}" max="1" value="${uploading.get(f.id) || 0}" ${uploading.has(f.id) ? "" : "hidden"}></progress></td>
-        <td>${f.published || publishedIds.has(f.id) ? '<span class="muted">Published</span>' : `<button data-del-font="${f.id}" class="danger">Delete</button>`}</td>
-      </tr>`).join("");
+    // One block per font, every control under its name: a table cell has no room for a name above
+    // the control or for a statement of several lines, and on a phone no room at all.
+    const items = data.fonts.map((f) => `<div class="font-item">
+        <div class="row font-head"><strong>ID ${f.id}</strong>
+          ${f.published || publishedIds.has(f.id) ? '<span class="muted">Published</span>' : `<button data-del-font="${f.id}" class="danger push">Delete</button>`}</div>
+        <div class="font-fields">
+          <div class="font-main">
+            <div class="row">
+              <label class="field grow">Name<input data-font="${f.id}" data-f="name" value="${esc(f.name)}"></label>
+              <label class="field field-short">Order<input data-font="${f.id}" data-f="sort" value="${f.sort}" inputmode="numeric"></label>
+            </div>
+            <div class="row checks">
+              <label><input type="checkbox" data-font="${f.id}" data-f="licensed" ${f.licensed ? "checked" : ""}> Licensed</label>
+              <label><input type="checkbox" data-font="${f.id}" data-f="disabled" ${f.disabled ? "checked" : ""}> Disabled</label>
+            </div>
+            <div class="field">File
+              <div class="file-info">${f.download_url
+                ? `<span title="${esc(f.file_name)}">Installed ${mb(f.font_bytes)}, download ${mb(f.download_bytes)}</span>`
+                : '<span class="muted">Not uploaded</span>'}
+                <input type="file" accept=".gz,application/gzip" data-upload="${f.id}" ${o.fonts_upload_configured && !uploading.has(f.id) ? "" : "disabled"}>
+                <progress data-progress="${f.id}" max="1" value="${uploading.get(f.id) || 0}" ${uploading.has(f.id) ? "" : "hidden"}></progress>
+              </div>
+            </div>
+          </div>
+          <label class="field">Source and licence statement<textarea data-font="${f.id}" data-f="attribution" rows="4" maxlength="500">${esc(f.attribution)}</textarea></label>
+        </div>
+      </div>`).join("");
     $("tab-fonts").innerHTML = `
       ${o.fonts_upload_configured ? "" : '<div class="banner warn">The backend has no GitHub repo for fonts yet (ALL_MO_DIARY__FONTS_REPO, ALL_MO_DIARY__GITHUB_TOKEN), so uploads are off.</div>'}
       ${o.cache_consistent ? "" : '<div class="banner warn">The cache and the database disagree on the version. Go to "System" and press "Reload cache".</div>'}
       <div class="card">
-        <p class="muted">Upload the <code>.otf.gz</code> made by the <strong>font subsetting tool</strong> (tools/ in the meta repo).
-        Changes are saved as a draft; the App gets the new list only after "Publish". IDs never change and are never reused; a published font can't be deleted, only disabled.
-        "Licensed" is only a label and doesn't block uploads. The built-in Noto Sans TC is not in this list.
-        The "source and licence statement" is shown as written on the font settings page and the open-source licences page of the App. Fill it in for fonts whose licence requires naming the source; leave it empty for the rest.</p>
-        <div class="row"><strong>Font list</strong><span class="muted">Published: ${esc(release ? release.version : "none")}</span>
+        <div class="row"><h3>Font list</h3><span class="muted">Published: ${esc(release ? release.version : "none")}</span>
           ${unpublished ? '<span class="pill warn">The draft has unpublished changes</span>' : '<span class="pill">Same as published</span>'}
-          <span class="grow"></span><button id="publish-fonts" class="primary">Publish</button></div>
+          <button id="publish-fonts" class="primary push">Publish</button></div>
+        ${items || '<p class="muted">No fonts yet</p>'}
       </div>
-      <div class="card admin">
-        <div class="scroll-x"><table><thead><tr><th>ID</th><th>Name</th><th>Order</th><th>Licence</th><th></th><th>File</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" class="muted">No fonts yet</td></tr>'}</tbody></table></div>
-        <div class="row" style="margin-top:8px"><input id="new-font-name" class="field-name" placeholder="Font name (as shown in the App)">
-          <input id="new-font-sort" class="cell-sort" placeholder="Order" inputmode="numeric">
-          <label><input type="checkbox" id="new-font-licensed"> Licensed</label>
-          <input id="new-font-attribution" class="field-name" maxlength="500" placeholder="Source and licence statement (optional)">
-          <button id="add-font">Add font</button></div>
-      </div>`;
+      <div class="card">
+        <h3>Add a font</h3>
+        <div class="font-fields">
+          <div class="font-main">
+            <div class="row">
+              <label class="field grow">Name<input id="new-font-name" placeholder="As shown in the App"></label>
+              <label class="field field-short">Order<input id="new-font-sort" inputmode="numeric"></label>
+            </div>
+            <div class="row checks"><label><input type="checkbox" id="new-font-licensed"> Licensed</label></div>
+          </div>
+          <label class="field">Source and licence statement (optional)<textarea id="new-font-attribution" rows="3" maxlength="500"></textarea></label>
+        </div>
+        <div class="row actions"><button id="add-font">Add font</button></div>
+      </div>
+      <ul class="notes">
+        <li>Upload the <code>.otf.gz</code> made by the <strong>font subsetting tool</strong> (tools/ in the meta repo).</li>
+        <li>Changes are saved as a draft; the App gets the new list only after "Publish". IDs never change and are never reused; a published font can't be deleted, only disabled.</li>
+        <li>"Licensed" is only a label and doesn't block uploads. The built-in Noto Sans TC is not in this list.</li>
+        <li>The "source and licence statement" is shown as written on the font settings page and the open-source licences page of the App. Fill it in for fonts whose licence requires naming the source; leave it empty for the rest.</li>
+      </ul>`;
     NEW_FONT_FIELDS.forEach((id, i) => { $(id).value = draft[i]; });
     $("new-font-licensed").checked = draftLicensed;
     bindFonts();
@@ -225,7 +246,7 @@
         if (uploading.has(id)) return;
         uploading.set(id, 0);
         input.disabled = true;
-        // Looked up on every update: the table may have been rebuilt since the upload started.
+        // Looked up on every update: the list may have been rebuilt since the upload started.
         const showProgress = () => {
           const bar = document.querySelector(`[data-progress="${id}"]`);
           if (bar) { bar.hidden = false; bar.value = uploading.get(id) || 0; }
@@ -235,7 +256,7 @@
           try {
             await api.upload(`/api/admin/fonts/${id}/file`, file, (p) => { uploading.set(id, p); showProgress(); });
           } finally {
-            // Success or failure, the row is rebuilt from the server without the upload state.
+            // Success or failure, the entry is rebuilt from the server without the upload state.
             uploading.delete(id);
             await loadFonts();
           }
@@ -250,10 +271,12 @@
       const c = await api.call("GET", "/api/admin/app-config");
       $("tab-version").innerHTML = `<div class="card">
         <p class="muted">Use a forced update only for serious problems or legal conflicts; it only reaches phones that are online and run the daily check. The reason written here is shown on screen.</p>
-        <p><label>Minimum usable App version (x.y.z)<br><input id="cfg-min" value="${esc(c.min_app_version)}"></label></p>
-        <p><label>Reason for the forced update<br><textarea id="cfg-reason" maxlength="300">${esc(c.force_reason)}</textarea></label></p>
-        <p><label>Update link (https://; may be empty before listing)<br><input id="cfg-url" value="${esc(c.update_url)}" style="width:100%"></label></p>
-        <p><label>Announcement (shown once at the App's daily check; empty shows nothing)<br><input id="cfg-ann" value="${esc(c.announcement)}" style="width:100%" maxlength="300"></label></p>
+        <div class="form">
+          <label class="field">Minimum usable App version (x.y.z)<input id="cfg-min" class="short" value="${esc(c.min_app_version)}"></label>
+          <label class="field">Reason for the forced update<textarea id="cfg-reason" maxlength="300">${esc(c.force_reason)}</textarea></label>
+          <label class="field">Update link (https://; may be empty before listing)<input id="cfg-url" value="${esc(c.update_url)}"></label>
+          <label class="field">Announcement (shown once at the App's daily check; empty shows nothing)<input id="cfg-ann" value="${esc(c.announcement)}" maxlength="300"></label>
+        </div>
         <p class="muted">Last changed: ${esc(fmtTime(c.updated_at))} ${esc(c.updated_by)}</p>
         <button id="cfg-save" class="primary">Save</button></div>`;
       $("cfg-save").onclick = () => {
@@ -281,38 +304,43 @@
       if (mine !== gen.feedback) return;
       const opt = (values, labels, current) => '<option value="">All</option>' +
         values.map((v) => `<option value="${esc(v)}" ${v === current ? "selected" : ""}>${esc(labels ? labels[v] : v)}</option>`).join("");
-      $("tab-feedback").innerHTML = `<div class="card admin">
-          <div class="row">
-            <select id="f-kind">${opt(Object.keys(KIND), KIND, feedbackFilters.kind)}</select>
-            <select id="f-status">${opt(Object.keys(STATUS), STATUS, feedbackFilters.status)}</select>
-            <select id="f-ver">${opt(data.app_versions, null, feedbackFilters.app_version)}</select>
-            <select id="f-model">${opt(data.device_models, null, feedbackFilters.device_model)}</select>
-            <span class="muted">${data.total} in total (kept up to 90 days)</span>
+      // The version and the phone model go under the description: as columns of their own they
+      // would leave the description, the one long text, the narrowest column.
+      const pages = data.page > 1 || data.page * data.per_page < data.total;
+      $("tab-feedback").innerHTML = `<div class="card">
+          <div class="toolbar">
+            <label class="field">Type<select id="f-kind">${opt(Object.keys(KIND), KIND, feedbackFilters.kind)}</select></label>
+            <label class="field">Status<select id="f-status">${opt(Object.keys(STATUS), STATUS, feedbackFilters.status)}</select></label>
+            <label class="field">Version<select id="f-ver">${opt(data.app_versions, null, feedbackFilters.app_version)}</select></label>
+            <label class="field">Model<select id="f-model">${opt(data.device_models, null, feedbackFilters.device_model)}</select></label>
+            <span class="muted count">${data.total} in total (kept up to 90 days)</span>
           </div>
-          <div class="scroll-x"><table><thead><tr><th>Time</th><th>Type</th><th>Status</th><th>Description</th><th>Version</th><th>Model</th></tr></thead><tbody>
-          ${data.items.map((i) => `<tr data-fb="${i.id}" style="cursor:pointer">
-            <td>${esc(fmtTime(i.received_at))}</td><td>${esc(KIND[i.kind])}</td><td>${esc(STATUS[i.status])}</td>
-            <td>${esc(i.description)}</td><td>${esc(i.app_version)}</td><td>${esc(i.device_model)}</td></tr>`).join("") ||
-            '<tr><td colspan="6" class="muted">No feedback</td></tr>'}
+          <div class="scroll-x"><table><thead><tr><th>Time</th><th>Type</th><th>Status</th><th>Description</th></tr></thead><tbody>
+          ${data.items.map((i) => `<tr data-fb="${i.id}">
+            <td class="nowrap aside minor">${esc(fmtTime(i.received_at))}</td><td class="nowrap">${esc(KIND[i.kind])}</td><td class="nowrap">${esc(STATUS[i.status])}</td>
+            <td class="line breakable">${esc(i.description)}<span class="muted sub">App ${esc(i.app_version)} · ${esc(i.device_model)}</span></td></tr>`).join("") ||
+            '<tr><td colspan="4" class="muted">No feedback</td></tr>'}
           </tbody></table></div>
-          <div class="row" style="margin-top:8px">
+          ${pages ? `<div class="row actions">
             <button id="f-prev" ${data.page <= 1 ? "disabled" : ""}>Previous</button>
             <span class="muted">Page ${data.page}</span>
             <button id="f-next" ${data.page * data.per_page >= data.total ? "disabled" : ""}>Next</button>
-          </div>
+          </div>` : ""}
         </div>
         <div id="fb-detail"></div>
-        <div class="card"><h3 style="margin-top:0">Personal data deletion request</h3>
+        <div class="card"><h3>Personal data deletion request</h3>
           <p class="muted">Delete all feedback from one e-mail (Privacy Policy, section 7).</p>
-          <div class="row"><input id="del-email" class="field-name" placeholder="email@example.com"><button id="del-email-btn" class="danger">Delete all</button></div>
+          <div class="row"><input id="del-email" class="field-wide" placeholder="email@example.com"><button id="del-email-btn" class="danger">Delete all</button></div>
         </div>`;
       const set = (k) => (ev) => { feedbackFilters[k] = ev.target.value; feedbackFilters.page = 1; loadFeedback(); };
       $("f-kind").onchange = set("kind");
       $("f-status").onchange = set("status");
       $("f-ver").onchange = set("app_version");
       $("f-model").onchange = set("device_model");
-      $("f-prev").onclick = () => { feedbackFilters.page -= 1; loadFeedback(); };
-      $("f-next").onclick = () => { feedbackFilters.page += 1; loadFeedback(); };
+      if (pages) {
+        $("f-prev").onclick = () => { feedbackFilters.page -= 1; loadFeedback(); };
+        $("f-next").onclick = () => { feedbackFilters.page += 1; loadFeedback(); };
+      }
       document.querySelectorAll("[data-fb]").forEach((tr) => { tr.onclick = () => showFeedback(tr.dataset.fb); });
       $("del-email-btn").onclick = () => {
         const email = $("del-email").value.trim();
@@ -343,8 +371,8 @@
       const f = await api.call("GET", "/api/admin/feedback/" + id);
       if (mine !== gen.detail) return;
       $("fb-detail").innerHTML = `<div class="card">
-        <div class="row"><strong>${esc(KIND[f.kind])}</strong><span class="muted">${esc(f.id)}</span><span class="grow"></span>
-          <button id="fb-close">Close</button></div>
+        <div class="row detail-head"><div><strong>${esc(KIND[f.kind])}</strong><span class="muted breakable">${esc(f.id)}</span></div>
+          <button id="fb-close" class="push">Close</button></div>
         <p>${esc(f.description).replace(/\n/g, "<br>")}</p>
         <p class="muted">Email: ${esc(f.email)} | Received: ${esc(fmtTime(f.received_at))} | Phone time: ${esc(fmtTime(f.device_time))}<br>
         App ${esc(f.app_version)} (${esc(f.build_number)}) | ${esc(f.device_model)} | ${esc(f.os_version)} | Install ID ${esc(f.install_id)}</p>
@@ -374,12 +402,12 @@
   async function loadAdmins() {
     await run(async () => {
       const data = await api.call("GET", "/api/admin/admins");
-      $("tab-admins").innerHTML = `<div class="card admin">
-        <table><thead><tr><th>Email</th><th>Note</th><th></th></tr></thead><tbody>
-        ${data.admins.map((a) => `<tr><td>${esc(a.email)}</td><td>${esc(a.note)}</td>
-          <td>${a.fixed ? '<span class="muted">Set by environment variable</span>' : `<button data-rm="${esc(a.email)}" class="danger">Remove</button>`}</td></tr>`).join("")}
-        </tbody></table>
-        <div class="row" style="margin-top:8px"><input id="adm-email" class="field-name" placeholder="Email"><input id="adm-note" class="field-name" placeholder="Note"><button id="adm-add" class="primary">Add admin</button></div>
+      $("tab-admins").innerHTML = `<div class="card">
+        <div class="scroll-x"><table><thead><tr><th>Email</th><th>Note</th><th></th></tr></thead><tbody>
+        ${data.admins.map((a) => `<tr><td class="lead">${esc(a.email)}</td><td class="line minor breakable">${esc(a.note)}</td>
+          <td class="nowrap aside">${a.fixed ? '<span class="muted">Set by environment variable</span>' : `<button data-rm="${esc(a.email)}" class="danger">Remove</button>`}</td></tr>`).join("")}
+        </tbody></table></div>
+        <div class="row add-row"><label class="field field-wide">Email<input id="adm-email"></label><label class="field field-wide">Note<input id="adm-note"></label><button id="adm-add" class="primary">Add admin</button></div>
       </div>`;
       $("adm-add").onclick = () => run(async () => {
         await api.call("POST", "/api/admin/admins", { email: $("adm-email").value.trim(), note: $("adm-note").value.trim() });
@@ -413,12 +441,12 @@
       const data = await api.call("GET", "/api/admin/audit" + before);
       auditRows = more ? auditRows.concat(data.items) : data.items;
       const label = (a) => AUDIT_ACTIONS[String(a).split(".").pop()] || a;
-      $("tab-audit").innerHTML = `<div class="card admin">
-        <table><thead><tr><th>Time</th><th>Account</th><th>Action</th><th>Target</th><th>Result</th></tr></thead><tbody>
-        ${auditRows.map((r) => `<tr><td>${esc(fmtTime(r.at))}</td><td>${esc(r.actor || "-")}</td><td>${esc(label(r.action))}</td>
-          <td>${esc(r.target || "-")}</td><td class="${r.result === "ok" ? "" : "warn"}">${esc(AUDIT_RESULTS[r.result] || r.result)}</td></tr>`).join("")}
-        </tbody></table>
-        ${data.items.length === 50 ? '<div class="row" style="margin-top:8px"><button id="audit-more">Load older</button></div>' : ""}
+      $("tab-audit").innerHTML = `<div class="card">
+        <div class="scroll-x"><table><thead><tr><th>Time</th><th>Account</th><th>Action</th><th>Target</th><th>Result</th></tr></thead><tbody>
+        ${auditRows.map((r) => `<tr><td class="nowrap line minor last">${esc(fmtTime(r.at))}</td><td class="line">${esc(r.actor || "-")}</td><td class="lead">${esc(label(r.action))}</td>
+          <td class="line minor breakable${r.target ? "" : " empty"}">${esc(r.target || "-")}</td><td class="nowrap aside${r.result === "ok" ? "" : " warn"}">${esc(AUDIT_RESULTS[r.result] || r.result)}</td></tr>`).join("")}
+        </tbody></table></div>
+        ${data.items.length === 50 ? '<div class="row actions"><button id="audit-more">Load older</button></div>' : ""}
         <p class="muted">Read-only: nothing here can be edited or deleted. Kept for 180 days.</p>
       </div>`;
       const moreBtn = $("audit-more");

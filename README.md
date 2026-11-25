@@ -19,7 +19,7 @@
 |---|---|
 | `index.html` | 首頁：App 介紹、「你的日記只在你手上」、下載、字體（App 提供的字體與各自的來源，授權要求標示來源的字體在這裡照原文標示）。上方的頁籤可以在同一頁切換到使用者條款、隱私權政策（網址會帶 `?doc=terms` / `?doc=privacy`，可以直接分享）。右上角可以用 Google 登入：一般使用者登入沒有作用；管理員登入後才出現「管理後台」的入口。 |
 | `legal.html?doc=terms` / `privacy` | 條款與政策的單獨頁面，內容和首頁頁籤是同一份。App 內與 Google 同意畫面連的是這個網址，所以保留。 |
-| `admin.html` | 管理後台，五個分頁：字體（字體清單的編輯，包含每個字體的來源／授權說明；上傳字體檔、發布）、App 版本（強制更新門檻、原因、公告）、意見回饋、管理員、系統（快取與資料庫的版本、重新載入快取）。 |
+| `admin.html` | 管理後台，六個分頁：字體（字體清單的編輯，包含每個字體的來源／授權說明；上傳字體檔、發布）、App 版本（強制更新門檻、原因、公告）、意見回饋、管理員、操作紀錄（誰在後台做了什麼、有沒有成功，只能看）、系統（快取與資料庫的版本、重新載入快取）。 |
 | `demo/`、`demo-en/` | 首頁與管理後台的示範版（中文、英文），不連後端，見 [`demo/README.md`](demo/README.md)。 |
 
 ### 系統架構
@@ -55,11 +55,18 @@ App 還沒上架 Google Play，首頁的「下載最新版全心日記」連到 
 
 ### 慢回應不能蓋掉新畫面
 
-後台每次讀取都拿一個編號，比較慢的舊回應晚回來時直接丟掉，不覆蓋比較新的畫面。字體上傳中的狀態記在模組層級（`uploading`），不記在表格上：上傳期間任何編輯、發布、切換頁籤都會重畫表格，重畫後的那一列仍然要顯示進度、不能再開第二次上傳。上傳請求的每一種結束方式（成功、網路錯誤、逾時、中斷）都會解除鎖定。
+後台每次讀取都拿一個編號，比較慢的舊回應晚回來時直接丟掉，不覆蓋比較新的畫面。字體上傳中的狀態記在模組層級（`uploading`），不記在畫面上：上傳期間任何編輯、發布、切換頁籤都會重畫字體清單，重畫後的那個字體仍然要顯示進度、不能再開第二次上傳。上傳請求的每一種結束方式（成功、網路錯誤、逾時、中斷）都會解除鎖定。
 
 ### 後端在休眠時
 
 Render 免費方案閒置 15 分鐘會休眠，喚醒約一分鐘。所以第一次請求給 75 秒，連不上時顯示「可能正在喚醒」；後台打不開時保留登入狀態，重新整理即可重試，不會把管理員登出。
+
+### 後台的版面：每個欄位都有名稱，窄螢幕不用左右捲動
+
+- 意見回饋、管理員、操作紀錄在寬螢幕是表格。視窗寬度 880px 以下（五欄的操作紀錄開始放不下的寬度），每一列改排成一塊：最重要的那一欄在第一行，其餘各佔一行。表格硬塞進手機寬度時，不是要左右捲動，就是每一欄被擠到一個字一行。
+- 意見回饋的版本與機型寫在描述的下面，不另外佔兩欄：描述是唯一的長文字，欄位越多它越窄。
+- 字體清單不用表格，一個字體一塊，每個欄位上面寫名稱。一個字體有名稱、排序、有授權、停用、來源／授權說明、檔案；表格的格子裡放不下欄位名稱，也放不下好幾行的說明。
+- 這些樣式只套在 `admin.html`（`<body class="console">`）。首頁與條款頁和後台共用同一份 `css/style.css`，維持比較窄的閱讀寬度與有格線的表格。
 
 ### 檔案結構
 
@@ -82,7 +89,6 @@ all-mo-diary-web/
 ### 已知限制
 
 - 下載的 APK 不經過 Google Play，第一次安裝時手機會要求允許瀏覽器「安裝不明應用程式」。
-- 管理後台只為桌面瀏覽器設計，手機上可以用但表格需要左右捲動。
 - GitHub Pages 免費方案只能用在公開的 repo。
 
 ---
@@ -167,7 +173,7 @@ The two parts are deliberately separate; the report is background, the guide is 
 |---|---|
 | `index.html` | Home page: about the app, "your diary stays with you", download, fonts (the fonts the app offers and where each comes from; a font whose licence requires naming its source is credited here in the licence's own wording). Tabs at the top switch to the Terms of Use and Privacy Policy on the same page (the address carries `?doc=terms` / `?doc=privacy`, so it can be shared). Google sign-in at the top right: ordinary users get nothing; an admin gets the "管理後台" (admin console) link. |
 | `legal.html?doc=terms` / `privacy` | Stand-alone pages for the terms and policy, the same text as the home page tabs. The app and Google's consent screen link here, so it stays. |
-| `admin.html` | Admin console with five tabs: Fonts (edit the font list, including each font's source and licence statement; upload font files, publish), App version (forced-update threshold, reason, announcement), Feedback, Admins, System (cache and database versions, reload cache). |
+| `admin.html` | Admin console with six tabs: Fonts (edit the font list, including each font's source and licence statement; upload font files, publish), App version (forced-update threshold, reason, announcement), Feedback, Admins, Audit log (who did what in the console and whether it went through; read-only), System (cache and database versions, reload cache). |
 | `demo/`, `demo-en/` | Demo versions of the home page and console (Chinese, English) that never contact the backend; see [`demo/README.md`](demo/README.md). |
 
 ### System Architecture
@@ -203,11 +209,18 @@ The app is not yet on Google Play, so the home page's download button links to a
 
 ### A Slow Response Must Not Overwrite a Newer Screen
 
-Every console load takes a number; a slow old response that arrives after a newer one is dropped instead of overwriting the newer screen. Font uploads in progress are tracked at module level (`uploading`), not in the table: any edit, publish or tab switch during an upload rebuilds the table, and the rebuilt row must still show the progress and not offer a second upload. Every way an upload request can end (success, network error, timeout, abort) releases the lock.
+Every console load takes a number; a slow old response that arrives after a newer one is dropped instead of overwriting the newer screen. Font uploads in progress are tracked at module level (`uploading`), not on the page: any edit, publish or tab switch during an upload rebuilds the font list, and the rebuilt entry must still show the progress and not offer a second upload. Every way an upload request can end (success, network error, timeout, abort) releases the lock.
 
 ### When the Backend Is Asleep
 
 Render's free plan sleeps after 15 idle minutes and takes about a minute to wake. So the first request gets 75 seconds and a failure says the backend may be waking up; if the console can't load, the session is kept and a reload retries, without signing the admin out.
+
+### Console Layout: Every Control Is Named, and Narrow Screens Don't Scroll Sideways
+
+- Feedback, Admins and Audit log are tables on a wide screen. At 880px and below (where the five-column audit log stops fitting) each row becomes a block: the most important cell on the first line, the others a line each. A table forced into a phone's width either scrolls sideways or squeezes every column to one character per line.
+- The app version and the phone model of a feedback entry sit under its description instead of taking two columns: the description is the only long text, and every extra column makes it narrower.
+- The font list is not a table: one block per font, each control under its name. A font has a name, an order, a licensed flag, a disabled flag, a source and licence statement, and a file; a table cell has no room for the name of a control or for a statement of several lines.
+- These styles apply only to `admin.html` (`<body class="console">`). The home and legal pages share the same `css/style.css` and keep their narrower reading column and bordered tables.
 
 ### File Layout
 
@@ -230,7 +243,6 @@ all-mo-diary-web/
 ### Known Limitations
 
 - The downloaded APK does not come through Google Play, so the first install asks to allow the browser to "install unknown apps".
-- The console is designed for desktop browsers; it works on a phone, but tables scroll sideways.
 - GitHub Pages on the free plan works only for public repos.
 
 ---
